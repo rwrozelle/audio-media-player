@@ -54,7 +54,7 @@ The code uses esp_decoder and is configured for the following:
 * DEFAULT_ESP_M4A_DECODER_CONFIG(),
 * DEFAULT_ESP_TS_DECODER_CONFIG(),
 
-I've only used it with flac and mp3 files. Flac files play correct "most" of the time, a little chattering every now and then. I've written a Python script to use ffmpeg to convert flac files (320Kb) and found the sound comparible with less to no chattering.  I'm not an audio-file, I just built this to be able to reuse old stereo equipment that I own.
+I've only used it with flac and mp3 files. Flac files play correct "most" of the time, a little chattering every now and then. I've written a Python script to use ffmpeg to convert flac files to mp3(320Kb) and found the sound comparible with less to no chattering.  I'm not an audio-file, I just built this to be able to reuse old stereo equipment that I own and learn about esphome.
 
 ## Example Yaml
 ```
@@ -75,7 +75,7 @@ esp32:
   flash_size: 16MB
   framework:
     type: esp-idf
-    # below is scavenged from internet, appears to help with running some internet radio stations.
+    # below sdkconfig options are scavenged from internet, appears to help with running some internet radio stations.
     sdkconfig_options:
       CONFIG_ESP32_S3_BOX_BOARD: "y"
 
@@ -240,6 +240,8 @@ Announcements are added to a separate "announcements" playlist and current playl
 
 ## Join / Unjoin
 There is commented code which is an attempt to synchronize sound accross the group members leveraging multicast. I never could get it to work right. Instead, code attempts to get group members to start each track at the same time as the leader.
+
+Best used when speakers are not in earshot of each other since small variation in play timing is inevitable with this approach.
 
 The knowledge of the group members does not survive a reboot. Here is an example script to set the group members:
 ```

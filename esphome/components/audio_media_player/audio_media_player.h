@@ -46,7 +46,10 @@ class AudioMediaPlayer : public Component, public media_player::MediaPlayer, pub
 
   media_player::MediaPlayerState prior_state{media_player::MEDIA_PLAYER_STATE_NONE};
 
+  int64_t mrm_run_interval = 1500000L;
+
  protected:
+  HighFrequencyLoopRequester high_freq_;
 
   //Media Player
   void control(const media_player::MediaPlayerCall &call) override;

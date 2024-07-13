@@ -461,12 +461,14 @@ int64_t SimpleAdfMediaPipeline::get_timestamp_() {
 }
 
 void SimpleAdfMediaPipeline::pipeline_run_() {
-    if (trying_to_launch_ && get_timestamp_() > launch_timestamp_) {
-      trying_to_launch_ = false;
-      audio_pipeline_run(pipeline_);
-      is_launched_ = true;
-      launch_timestamp_ = 0;
-    }
+  int64_t timestamp = get_timestamp_();
+  if (trying_to_launch_ && timestamp > launch_timestamp_) {
+    trying_to_launch_ = false;
+    esph_log_d(TAG,"Pipeline Run, requested launch time: %lld, launch time: %lld",launch_timestamp_, timestamp);
+    audio_pipeline_run(pipeline_);
+    is_launched_ = true;
+    launch_timestamp_ = 0;
+  }
 }
 
 void SimpleAdfMediaPipeline::set_state_(SimpleAdfPipelineState state) {

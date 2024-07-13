@@ -367,6 +367,7 @@ void AudioMediaPlayer::on_pipeline_state_change(SimpleAdfPipelineState state) {
       else {
         this->state = media_player::MEDIA_PLAYER_STATE_PLAYING;
         if (state == SimpleAdfPipelineState::RUNNING) {
+          this->high_freq_.stop();
           timestamp_sec_ = get_timestamp_sec_();
         }
         else {
@@ -551,10 +552,11 @@ void AudioMediaPlayer::set_playlist_track_(ADFPlaylistTrack track) {
   pipeline_.set_url(track.url);
   int64_t timestamp = 0;
   if (multiRoomAudio_.get_mrm() == media_player::MEDIA_PLAYER_MRM_LEADER) {
-    timestamp = multiRoomAudio_.get_timestamp() + 1000000L;
+    timestamp = multiRoomAudio_.get_timestamp() + mrm_run_interval;
     pipeline_.set_launch_timestamp(timestamp);
   }
   multiRoomAudio_.set_url(track.url,timestamp);
+  this->high_freq_.start();
 }
 
 void AudioMediaPlayer::play_next_track_on_playlist_(int track_id) {
@@ -596,10 +598,11 @@ bool AudioMediaPlayer::play_next_track_on_announcements_() {
         retBool = true;
         int64_t timestamp = 0;
         if (multiRoomAudio_.get_mrm() == media_player::MEDIA_PLAYER_MRM_LEADER) {
-          timestamp = multiRoomAudio_.get_timestamp() + 1000000L;
+          timestamp = multiRoomAudio_.get_timestamp() + mrm_run_interval;
           pipeline_.set_launch_timestamp(timestamp);
         }
         multiRoomAudio_.set_url((*audioPlaylists_.get_announcements())[i].url,timestamp);
+        this->high_freq_.start();
       }
     }
     if (!retBool) {

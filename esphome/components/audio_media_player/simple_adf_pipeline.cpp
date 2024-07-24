@@ -150,16 +150,15 @@ void SimpleAdfMediaPipeline::play(bool resume) {
     }
 
     for (int i = 0; i < 1000; i++) {
-      audio_event_iface_msg_t msg;
-      esp_err_t ret = audio_event_iface_listen(evt_, &msg, portMAX_DELAY);
+      esp_err_t ret = audio_event_iface_listen(evt_, &msg_, portMAX_DELAY);
       if (ret == ESP_OK) {
-        if (msg.source_type == AUDIO_ELEMENT_TYPE_ELEMENT
-          && msg.source == (void *) esp_decoder_
-          && msg.cmd == AEL_MSG_CMD_REPORT_MUSIC_INFO) {
+        if (msg_.source_type == AUDIO_ELEMENT_TYPE_ELEMENT
+          && msg_.source == (void *) esp_decoder_
+          && msg_.cmd == AEL_MSG_CMD_REPORT_MUSIC_INFO) {
           audio_element_info_t music_info = {0};
           audio_element_getinfo(esp_decoder_, &music_info);
 
-          esph_log_d(TAG, "[ * ] Receive music info from esp decoder, sample_rates=%d, bits=%d, ch=%d",
+          esph_log_d(TAG, "[ decoder ] Receive music info, sample_rates=%d, bits=%d, ch=%d",
                     music_info.sample_rates, music_info.bits, music_info.channels);
 
           i2s_stream_set_clk(i2s_stream_writer_, music_info.sample_rates, music_info.bits, music_info.channels);
@@ -275,39 +274,38 @@ SimpleAdfPipelineState SimpleAdfMediaPipeline::loop() {
     pipeline_run_();
   }
   else {
-    audio_event_iface_msg_t msg;
-    esp_err_t ret = audio_event_iface_listen(evt_, &msg, 0);
+    esp_err_t ret = audio_event_iface_listen(evt_, &msg_, 0);
     if (ret == ESP_OK) {
-      if (msg.source_type == AUDIO_ELEMENT_TYPE_ELEMENT && msg.cmd == AEL_MSG_CMD_REPORT_STATUS) {
+      if (msg_.source_type == AUDIO_ELEMENT_TYPE_ELEMENT && msg_.cmd == AEL_MSG_CMD_REPORT_STATUS) {
         audio_element_status_t status;
-        std::memcpy(&status, &msg.data, sizeof(audio_element_status_t));
-        audio_element_handle_t el = (audio_element_handle_t) msg.source;
+        std::memcpy(&status, &msg_.data, sizeof(audio_element_status_t));
+        audio_element_handle_t el = (audio_element_handle_t) msg_.source;
         esph_log_i(TAG, "[ %s ] status: %s", audio_element_get_tag(el), audio_element_status_to_string(status));
 
         if (state_ == SimpleAdfPipelineState::STARTING || state_ == SimpleAdfPipelineState::RESUMING) {
-          if (msg.source_type == AUDIO_ELEMENT_TYPE_ELEMENT
-            && msg.cmd == AEL_MSG_CMD_REPORT_STATUS
-            && msg.source == (void *) http_stream_reader_
-            && msg.cmd == AEL_MSG_CMD_REPORT_STATUS
-            && ((int)msg.data == AEL_STATUS_STATE_RUNNING)) {
+          if (msg_.source_type == AUDIO_ELEMENT_TYPE_ELEMENT
+            && msg_.cmd == AEL_MSG_CMD_REPORT_STATUS
+            && msg_.source == (void *) http_stream_reader_
+            && msg_.cmd == AEL_MSG_CMD_REPORT_STATUS
+            && ((int)msg_.data == AEL_STATUS_STATE_RUNNING)) {
             esph_log_d(TAG, "[ %s ] running event received",audio_element_status_to_string(status));
             set_state_(SimpleAdfPipelineState::RUNNING);
           }
         }
         if (state_ == SimpleAdfPipelineState::RUNNING) {
-          if (msg.source_type == AUDIO_ELEMENT_TYPE_ELEMENT
-            && msg.source == (void *) http_stream_reader_
-            && msg.cmd == AEL_MSG_CMD_REPORT_STATUS
-            && ((int)msg.data == AEL_STATUS_STATE_FINISHED)) {
+          if (msg_.source_type == AUDIO_ELEMENT_TYPE_ELEMENT
+            && msg_.source == (void *) http_stream_reader_
+            && msg_.cmd == AEL_MSG_CMD_REPORT_STATUS
+            && ((int)msg_.data == AEL_STATUS_STATE_FINISHED)) {
             esph_log_d(TAG, "[ %s ] Finished event received",audio_element_status_to_string(status));
             set_state_(SimpleAdfPipelineState::STOPPING);
           }
         }
         if (state_ == SimpleAdfPipelineState::RUNNING || state_ == SimpleAdfPipelineState::STOPPING) {
-          if (msg.source_type == AUDIO_ELEMENT_TYPE_ELEMENT
-            && msg.source == (void *) i2s_stream_writer_
-            && msg.cmd == AEL_MSG_CMD_REPORT_STATUS
-            && (((int)msg.data == AEL_STATUS_STATE_STOPPED) || ((int)msg.data == AEL_STATUS_STATE_FINISHED))) {
+          if (msg_.source_type == AUDIO_ELEMENT_TYPE_ELEMENT
+            && msg_.source == (void *) i2s_stream_writer_
+            && msg_.cmd == AEL_MSG_CMD_REPORT_STATUS
+            && (((int)msg_.data == AEL_STATUS_STATE_STOPPED) || ((int)msg_.data == AEL_STATUS_STATE_FINISHED))) {
             esph_log_d(TAG, "[ * ] Stop event received");
             stop();
           }

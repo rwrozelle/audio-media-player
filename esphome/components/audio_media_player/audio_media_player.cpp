@@ -367,6 +367,7 @@ void AudioMediaPlayer::on_pipeline_state_change(SimpleAdfPipelineState state) {
       else {
         this->state = media_player::MEDIA_PLAYER_STATE_PLAYING;
         if (state == SimpleAdfPipelineState::RUNNING) {
+			esph_log_d(TAG,"Set Loop to run at normal cycle");
           this->high_freq_.stop();
           timestamp_sec_ = get_timestamp_sec_();
         }
@@ -556,6 +557,7 @@ void AudioMediaPlayer::set_playlist_track_(ADFPlaylistTrack track) {
     pipeline_.set_launch_timestamp(timestamp);
   }
   multiRoomAudio_.set_url(track.url,timestamp);
+			esph_log_d(TAG,"Set Loop to run at high frequency cycle");
   this->high_freq_.start();
 }
 
@@ -602,6 +604,7 @@ bool AudioMediaPlayer::play_next_track_on_announcements_() {
           pipeline_.set_launch_timestamp(timestamp);
         }
         multiRoomAudio_.set_url((*audioPlaylists_.get_announcements())[i].url,timestamp);
+		esph_log_d(TAG,"Set Loop to run at high frequency cycle");
         this->high_freq_.start();
       }
     }

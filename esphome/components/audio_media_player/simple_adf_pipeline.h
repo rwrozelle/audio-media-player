@@ -20,9 +20,9 @@ class SimpleAdfMediaPipeline : public i2s_audio::I2SAudioOut {
 //class SimpleAdfMediaPipeline {
 
  public:
-  int http_stream_rb_size{(50 * 1024)};
-  int esp_decoder_rb_size{(200 * 1024)};
-  int i2s_stream_rb_size{(50 * 1024)};
+  int http_stream_rb_size{(10 * 1024)};
+  int esp_decoder_rb_size{(20 * 1024)};
+  int i2s_stream_rb_size{(20 * 1024)};
 
   void set_dout_pin(uint8_t pin) { this->dout_pin_ = pin; }
 #if SOC_I2S_SUPPORTS_DAC
@@ -72,6 +72,7 @@ class SimpleAdfMediaPipeline : public i2s_audio::I2SAudioOut {
   audio_element_handle_t esp_decoder_{};
   audio_element_handle_t i2s_stream_writer_{};
   audio_event_iface_handle_t evt_{};
+  audio_event_iface_msg_t msg_;
   SimpleAdfPipelineState state_{SimpleAdfPipelineState::STOPPED};
   std::string url_{"https://dl.espressif.com/dl/audio/ff-16b-2c-44100hz.mp3"};
   bool is_announcement_{false};

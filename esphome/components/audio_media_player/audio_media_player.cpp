@@ -232,14 +232,14 @@ void AudioMediaPlayer::control(const media_player::MediaPlayerCall &call) {
         this->unmute_();
         break;
       case media_player::MEDIA_PLAYER_COMMAND_VOLUME_UP: {
-        float new_volume = this->volume + 0.1f;
+        float new_volume = this->volume + 0.05f;
         if (new_volume > 1.0f)
           new_volume = 1.0f;
         set_volume_(new_volume);
         break;
       }
       case media_player::MEDIA_PLAYER_COMMAND_VOLUME_DOWN: {
-        float new_volume = this->volume - 0.1f;
+        float new_volume = this->volume - 0.05f;
         if (new_volume < 0.0f)
           new_volume = 0.0f;
         set_volume_(new_volume);
@@ -367,8 +367,8 @@ void AudioMediaPlayer::on_pipeline_state_change(SimpleAdfPipelineState state) {
       else {
         this->state = media_player::MEDIA_PLAYER_STATE_PLAYING;
         if (state == SimpleAdfPipelineState::RUNNING) {
-			esph_log_d(TAG,"Set Loop to run at normal cycle");
-          this->high_freq_.stop();
+          //esph_log_d(TAG,"Set Loop to run at normal cycle");
+          //this->high_freq_.stop();
           timestamp_sec_ = get_timestamp_sec_();
         }
         else {
@@ -380,16 +380,19 @@ void AudioMediaPlayer::on_pipeline_state_change(SimpleAdfPipelineState state) {
     case SimpleAdfPipelineState::STOPPING:
       break;
     case SimpleAdfPipelineState::STOPPED:
-      this->state = media_player::MEDIA_PLAYER_STATE_IDLE;
-      publish_state();
-      multiRoomAudio_.stop();
       set_artist_("");
       set_album_("");
       set_title_("");
       set_duration_(0);
       set_position_(0);
+      this->state = media_player::MEDIA_PLAYER_STATE_IDLE;
+      publish_state();
+      multiRoomAudio_.stop();
 
       if (this->turning_off_) {
+        esph_log_d(TAG,"Set Loop to run at normal cycle");
+        this->high_freq_.stop();
+        pipeline_.clean_up();
         this->state = media_player::MEDIA_PLAYER_STATE_OFF;
         publish_state();
         multiRoomAudio_.turn_off();
@@ -404,6 +407,11 @@ void AudioMediaPlayer::on_pipeline_state_change(SimpleAdfPipelineState state) {
         }
         if (this->play_intent_) {
           start_();
+        }
+        else {
+          esph_log_d(TAG,"Set Loop to run at normal cycle");
+          this->high_freq_.stop();
+          pipeline_.clean_up();
         }
       }
       break;
@@ -557,8 +565,10 @@ void AudioMediaPlayer::set_playlist_track_(ADFPlaylistTrack track) {
     pipeline_.set_launch_timestamp(timestamp);
   }
   multiRoomAudio_.set_url(track.url,timestamp);
-			esph_log_d(TAG,"Set Loop to run at high frequency cycle");
-  this->high_freq_.start();
+  if (!HighFrequencyLoopRequester::is_high_frequency()) {
+    esph_log_d(TAG,"Set Loop to run at high frequency cycle");
+    this->high_freq_.start();
+  }
 }
 
 void AudioMediaPlayer::play_next_track_on_playlist_(int track_id) {
@@ -604,8 +614,10 @@ bool AudioMediaPlayer::play_next_track_on_announcements_() {
           pipeline_.set_launch_timestamp(timestamp);
         }
         multiRoomAudio_.set_url((*audioPlaylists_.get_announcements())[i].url,timestamp);
-		esph_log_d(TAG,"Set Loop to run at high frequency cycle");
-        this->high_freq_.start();
+        if (!HighFrequencyLoopRequester::is_high_frequency()) {
+          esph_log_d(TAG,"Set Loop to run at high frequency cycle");
+          this->high_freq_.start();
+        }
       }
     }
     if (!retBool) {

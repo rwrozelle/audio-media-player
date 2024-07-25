@@ -3,6 +3,9 @@
 #ifdef USE_ESP_IDF
 
 #include "driver/i2s.h"
+#include <http_stream.h>
+#include <esp_decoder.h>
+#include "i2s_stream_2_6_mod.h"
 #include <audio_pipeline.h>
 #include <string>
 #include "esphome/components/media_player/media_player.h"
@@ -20,9 +23,17 @@ class SimpleAdfMediaPipeline : public i2s_audio::I2SAudioOut {
 //class SimpleAdfMediaPipeline {
 
  public:
-  int http_stream_rb_size{(10 * 1024)};
-  int esp_decoder_rb_size{(20 * 1024)};
-  int i2s_stream_rb_size{(20 * 1024)};
+  int http_stream_rb_size{HTTP_STREAM_RINGBUFFER_SIZE};
+  int http_stream_task_core{HTTP_STREAM_TASK_CORE};
+  int http_stream_task_prio{HTTP_STREAM_TASK_PRIO};
+  
+  int esp_decoder_rb_size{ESP_DECODER_RINGBUFFER_SIZE};
+  int esp_decoder_task_core{ESP_DECODER_TASK_CORE};
+  int esp_decoder_task_prio{ESP_DECODER_TASK_PRIO};
+  
+  int i2s_stream_rb_size{I2S_STREAM_RINGBUFFER_SIZE};
+  int i2s_stream_task_core{I2S_STREAM_TASK_CORE};
+  int i2s_stream_task_prio{I2S_STREAM_TASK_PRIO};
 
   void set_dout_pin(uint8_t pin) { this->dout_pin_ = pin; }
 #if SOC_I2S_SUPPORTS_DAC
@@ -44,6 +55,7 @@ class SimpleAdfMediaPipeline : public i2s_audio::I2SAudioOut {
   void set_volume(int volume);
   void mute();
   void unmute();
+  void clean_up();
   SimpleAdfPipelineState loop();
   bool is_announcement() { return is_announcement_; }
   audio_element_handle_t get_esp_decoder() { return esp_decoder_; }
@@ -67,22 +79,19 @@ class SimpleAdfMediaPipeline : public i2s_audio::I2SAudioOut {
   bool use_adf_alc_{false};
   int volume_{25}; //between 0 and 100
 
-  audio_pipeline_handle_t pipeline_{};
-  audio_element_handle_t http_stream_reader_{};
-  audio_element_handle_t esp_decoder_{};
-  audio_element_handle_t i2s_stream_writer_{};
-  audio_event_iface_handle_t evt_{};
-  audio_event_iface_msg_t msg_;
+  audio_pipeline_handle_t pipeline_{nullptr};
+  audio_element_handle_t http_stream_reader_{nullptr};
+  audio_element_handle_t esp_decoder_{nullptr};
+  audio_element_handle_t i2s_stream_writer_{nullptr};
+  audio_event_iface_handle_t evt_{nullptr};
   SimpleAdfPipelineState state_{SimpleAdfPipelineState::STOPPED};
   std::string url_{"https://dl.espressif.com/dl/audio/ff-16b-2c-44100hz.mp3"};
   bool is_announcement_{false};
   bool trying_to_launch_{false};
   bool is_launched_{false};
   int64_t launch_timestamp_{0};
-
-  uint32_t sample_rate_{44100};
-  i2s_bits_per_sample_t bits_per_sample_{I2S_BITS_PER_SAMPLE_16BIT};
-  i2s_channel_fmt_t channel_fmt_{I2S_CHANNEL_FMT_RIGHT_LEFT};
+  bool is_initialized_{false};
+  bool is_music_info_set_{false};
 };
 
 }  // namespace esp_adf

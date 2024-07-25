@@ -2,11 +2,6 @@
 
 #ifdef USE_ESP_IDF
 
-#include "driver/i2s.h"
-#include <http_stream.h>
-#include <esp_decoder.h>
-#include "i2s_stream_2_6_mod.h"
-
 #include "esphome/core/log.h"
 
 namespace esphome {
@@ -90,7 +85,8 @@ void SimpleAdfMediaPipeline::dump_config() {
       default:
         break;
     }
-  } else {
+  } 
+  else {
 #endif
     esph_log_config(TAG, "  External DAC channels: %d", this->external_dac_channels_);
     esph_log_config(TAG, "  I2S DOUT Pin: %d", this->dout_pin_);
@@ -109,20 +105,9 @@ void SimpleAdfMediaPipeline::dump_config() {
 
 void SimpleAdfMediaPipeline::set_url(const std::string& url, bool is_announcement) {
   this->url_ = url;
-  esph_log_d(TAG, "Set Pipeline Url: %s", url_.c_str());
 }
 
 void SimpleAdfMediaPipeline::play(bool resume) {
-  bool isLocked = true;
-  for (int i = 0; i < 1000; i++) {
-    if (this->parent_->try_lock()) {
-      isLocked = false;
-      break;
-    }
-  }
-  if (isLocked) {
-    return;
-  }
   esph_log_d(TAG, "Called play with pipeline state: %s",pipeline_state_to_string(state_));
   if (url_.length() > 0 && ((!resume && state_ == SimpleAdfPipelineState::STOPPED) || (resume && state_ == SimpleAdfPipelineState::PAUSED))) {
     if (resume) {
@@ -131,67 +116,27 @@ void SimpleAdfMediaPipeline::play(bool resume) {
     else {
       set_state_(SimpleAdfPipelineState::STARTING);
     }
-    pipeline_init_();
-  
-    esph_log_d(TAG, "Start http_stream_reader and esp_decoder to get music info");
-    if( audio_element_run(http_stream_reader_) != ESP_OK )
-    {
-      esph_log_e(TAG, "Starting http streamer failed");
-    }
-    if( audio_element_run(esp_decoder_) != ESP_OK ){
-      esph_log_e(TAG, "Starting decoder streamer failed");
-    }
-    if( audio_element_resume(http_stream_reader_, 0, 2000 / portTICK_RATE_MS) != ESP_OK)
-    {
-      esph_log_e(TAG, "Resuming http streamer failed");
-    }
-    if( audio_element_resume(esp_decoder_, 0, 2000 / portTICK_RATE_MS) != ESP_OK ){
-      esph_log_e(TAG, "Resuming decoder failed");
-    }
-
-    for (int i = 0; i < 1000; i++) {
-      esp_err_t ret = audio_event_iface_listen(evt_, &msg_, portMAX_DELAY);
-      if (ret == ESP_OK) {
-        if (msg_.source_type == AUDIO_ELEMENT_TYPE_ELEMENT
-          && msg_.source == (void *) esp_decoder_
-          && msg_.cmd == AEL_MSG_CMD_REPORT_MUSIC_INFO) {
-          audio_element_info_t music_info = {0};
-          audio_element_getinfo(esp_decoder_, &music_info);
-
-          esph_log_d(TAG, "[ decoder ] Receive music info, sample_rates=%d, bits=%d, ch=%d",
-                    music_info.sample_rates, music_info.bits, music_info.channels);
-
-          i2s_stream_set_clk(i2s_stream_writer_, music_info.sample_rates, music_info.bits, music_info.channels);
-          esph_log_d(TAG,"updated i2s_stream with music_info");
-          
+    if (!is_initialized_) {
+      bool isLocked = true;
+      for (int i = 0; i < 1000; i++) {
+        if (this->parent_->try_lock()) {
+          isLocked = false;
           break;
         }
       }
-    }
-    esph_log_d(TAG, "Stop http_stream_reader and esp_decoder after getting music info");
-    audio_element_stop(http_stream_reader_);
-    audio_element_stop(esp_decoder_);
-    bool is_stopped = false;
-    for (int i = 0; i < 200; i++) {
-      bool stopped = audio_element_wait_for_stop(http_stream_reader_) == ESP_OK;
-      stopped = stopped &&  audio_element_wait_for_stop(esp_decoder_) == ESP_OK;
-      if( stopped ) {
-        audio_element_reset_state(http_stream_reader_);
-        audio_element_reset_state(esp_decoder_);
-        audio_element_reset_input_ringbuf(esp_decoder_);
-        audio_element_reset_output_ringbuf(esp_decoder_);
-        is_stopped = true;
-        break;
+      if (isLocked) {
+        esph_log_e(TAG, "Unable to obtain lock on i2s");
+        return;
       }
-    }
-    if (!is_stopped) {
-      esph_log_e(TAG, "Did not stop http_stream_reader and esp_decoder");
-    }
-    else {
-      esph_log_d(TAG, "http_stream_reader and esp_decoder stopped ");
+      pipeline_init_();
     }
     
-    esph_log_d(TAG, "Run pipeline");
+    if (!resume) {
+      audio_element_set_uri(http_stream_reader_, url_.c_str());
+      esph_log_d(TAG, "Play: %s", url_.c_str());
+      is_music_info_set_ = false;
+    }
+    esph_log_d(TAG, "Launch pipeline");
     set_volume(volume_);
     is_launched_ = false;
     trying_to_launch_ = true;
@@ -202,7 +147,10 @@ void SimpleAdfMediaPipeline::stop(bool pause) {
 
   esph_log_d(TAG, "Called stop with pipeline state: %s",pipeline_state_to_string(state_));
 
-  if (state_ == SimpleAdfPipelineState::RUNNING || state_ == SimpleAdfPipelineState::STOPPING) {
+  if (state_ == SimpleAdfPipelineState::STARTING
+  || state_ == SimpleAdfPipelineState::RUNNING
+  || state_ == SimpleAdfPipelineState::STOPPING
+  || state_ == SimpleAdfPipelineState::PAUSING) {
     if (pause) {
       set_state_(SimpleAdfPipelineState::PAUSING);
     }
@@ -211,10 +159,23 @@ void SimpleAdfMediaPipeline::stop(bool pause) {
     }
     if (is_launched_) {
       esph_log_d(TAG, "stop pipeline");
-      audio_pipeline_stop(pipeline_);
+      
+      if (pause) {
+        audio_pipeline_pause(pipeline_);
+      }
+      else {
+        audio_pipeline_stop(pipeline_);
+      }
       audio_pipeline_wait_for_stop(pipeline_);
-      pipeline_deinit_();
       is_launched_ = false;
+    }
+    if (is_initialized_ && !pause) {
+      audio_pipeline_reset_ringbuffer(pipeline_);
+      audio_pipeline_reset_elements(pipeline_);
+      audio_pipeline_change_state(pipeline_, AEL_STATE_INIT);
+    }
+    else if (is_initialized_ && pause) {
+      audio_pipeline_reset_ringbuffer(pipeline_);
     }
   }
   if (pause) {
@@ -222,6 +183,12 @@ void SimpleAdfMediaPipeline::stop(bool pause) {
   }
   else {
     set_state_(SimpleAdfPipelineState::STOPPED);
+  }
+}
+
+void SimpleAdfMediaPipeline::clean_up() {
+  if (is_initialized_) {
+    pipeline_deinit_();
   }
 }
 
@@ -245,7 +212,7 @@ void SimpleAdfMediaPipeline::set_volume(int volume) {
   }
 }
 
-  void SimpleAdfMediaPipeline::mute() {
+void SimpleAdfMediaPipeline::mute() {
   if (state_ == SimpleAdfPipelineState::RUNNING) {
     if (this->use_adf_alc_) {
       int target_volume = -64;
@@ -256,7 +223,7 @@ void SimpleAdfMediaPipeline::set_volume(int volume) {
   }
 }
 
-  void SimpleAdfMediaPipeline::unmute() {
+void SimpleAdfMediaPipeline::unmute() {
   if (state_ == SimpleAdfPipelineState::RUNNING) {
     if (this->use_adf_alc_) {
       //transform to range: -64 (muted) to 64 (super noisy)
@@ -273,40 +240,65 @@ SimpleAdfPipelineState SimpleAdfMediaPipeline::loop() {
   if (trying_to_launch_ && !is_launched_) {
     pipeline_run_();
   }
-  else {
-    esp_err_t ret = audio_event_iface_listen(evt_, &msg_, 0);
+  else if (is_launched_) {
+    audio_event_iface_msg_t msg;
+    esp_err_t ret = audio_event_iface_listen(evt_, &msg, 0);
     if (ret == ESP_OK) {
-      if (msg_.source_type == AUDIO_ELEMENT_TYPE_ELEMENT && msg_.cmd == AEL_MSG_CMD_REPORT_STATUS) {
-        audio_element_status_t status;
-        std::memcpy(&status, &msg_.data, sizeof(audio_element_status_t));
-        audio_element_handle_t el = (audio_element_handle_t) msg_.source;
-        esph_log_i(TAG, "[ %s ] status: %s", audio_element_get_tag(el), audio_element_status_to_string(status));
+      
+      if (is_music_info_set_ == false
+        && msg.source_type == AUDIO_ELEMENT_TYPE_ELEMENT
+        && msg.source == (void *) esp_decoder_
+        && msg.cmd == AEL_MSG_CMD_REPORT_MUSIC_INFO) {
+        audio_element_info_t music_info = {0};
+        audio_element_getinfo(esp_decoder_, &music_info);
 
+        esph_log_d(TAG, "[ decoder ] Receive music info, sample_rates=%d, bits=%d, ch=%d",
+                music_info.sample_rates, music_info.bits, music_info.channels);
+
+        i2s_stream_set_clk(i2s_stream_writer_, music_info.sample_rates, music_info.bits, music_info.channels);
+        esph_log_d(TAG,"updated i2s_stream with music_info");
+        is_music_info_set_ = true;
+        }
+            
+      if (msg.source_type == AUDIO_ELEMENT_TYPE_ELEMENT && msg.cmd == AEL_MSG_CMD_REPORT_STATUS) {
+        audio_element_status_t status;
+        std::memcpy(&status, &msg.data, sizeof(audio_element_status_t));
+        audio_element_handle_t el = (audio_element_handle_t) msg.source;
+        esph_log_i(TAG, "[ %s ] status: %s", audio_element_get_tag(el), audio_element_status_to_string(status));
+        int message_status = (int)msg.data;
+      
         if (state_ == SimpleAdfPipelineState::STARTING || state_ == SimpleAdfPipelineState::RESUMING) {
-          if (msg_.source_type == AUDIO_ELEMENT_TYPE_ELEMENT
-            && msg_.cmd == AEL_MSG_CMD_REPORT_STATUS
-            && msg_.source == (void *) http_stream_reader_
-            && msg_.cmd == AEL_MSG_CMD_REPORT_STATUS
-            && ((int)msg_.data == AEL_STATUS_STATE_RUNNING)) {
-            esph_log_d(TAG, "[ %s ] running event received",audio_element_status_to_string(status));
+          if (message_status == AEL_STATUS_ERROR_OPEN
+            || message_status == AEL_STATUS_ERROR_INPUT
+            || message_status == AEL_STATUS_ERROR_PROCESS
+            || message_status == AEL_STATUS_ERROR_OUTPUT
+            || message_status == AEL_STATUS_ERROR_CLOSE
+            || message_status == AEL_STATUS_ERROR_TIMEOUT
+            || message_status == AEL_STATUS_ERROR_UNKNOWN) {
+            esph_log_e(TAG, "Error received, stopping");
+            stop();
+            clean_up();
+          }
+          else if (msg.source == (void *) http_stream_reader_
+            && message_status == AEL_STATUS_STATE_RUNNING) {
+            esph_log_d(TAG, "Running event received");
             set_state_(SimpleAdfPipelineState::RUNNING);
           }
         }
+        
         if (state_ == SimpleAdfPipelineState::RUNNING) {
-          if (msg_.source_type == AUDIO_ELEMENT_TYPE_ELEMENT
-            && msg_.source == (void *) http_stream_reader_
-            && msg_.cmd == AEL_MSG_CMD_REPORT_STATUS
-            && ((int)msg_.data == AEL_STATUS_STATE_FINISHED)) {
-            esph_log_d(TAG, "[ %s ] Finished event received",audio_element_status_to_string(status));
+          if (msg.source == (void *) http_stream_reader_
+            && message_status == AEL_STATUS_STATE_FINISHED) {
+            esph_log_d(TAG, "Finished event received");
             set_state_(SimpleAdfPipelineState::STOPPING);
           }
         }
+        
         if (state_ == SimpleAdfPipelineState::RUNNING || state_ == SimpleAdfPipelineState::STOPPING) {
-          if (msg_.source_type == AUDIO_ELEMENT_TYPE_ELEMENT
-            && msg_.source == (void *) i2s_stream_writer_
-            && msg_.cmd == AEL_MSG_CMD_REPORT_STATUS
-            && (((int)msg_.data == AEL_STATUS_STATE_STOPPED) || ((int)msg_.data == AEL_STATUS_STATE_FINISHED))) {
-            esph_log_d(TAG, "[ * ] Stop event received");
+          if (msg.source == (void *) i2s_stream_writer_
+            && (message_status == AEL_STATUS_STATE_STOPPED
+            || message_status == AEL_STATUS_STATE_FINISHED)) {
+            esph_log_d(TAG, "Stop event received");
             stop();
           }
         }
@@ -324,6 +316,8 @@ void SimpleAdfMediaPipeline::pipeline_init_() {
   
   http_stream_cfg_t http_cfg = HTTP_STREAM_CFG_DEFAULT();
   http_cfg.out_rb_size = http_stream_rb_size;
+  http_cfg.task_core = http_stream_task_core;
+  http_cfg.task_prio = http_stream_task_prio;
   esph_log_d(TAG, "init http_stream_reader");
   http_stream_reader_ = http_stream_init(&http_cfg);
 
@@ -341,15 +335,18 @@ void SimpleAdfMediaPipeline::pipeline_init_() {
   };
   esp_decoder_cfg_t auto_dec_cfg = DEFAULT_ESP_DECODER_CONFIG();
     auto_dec_cfg.out_rb_size = esp_decoder_rb_size;
+    auto_dec_cfg.task_core = esp_decoder_task_core;
+    auto_dec_cfg.task_prio = esp_decoder_task_prio;
+    
   esph_log_d(TAG, "init esp_decoder");
     esp_decoder_ = esp_decoder_init(&auto_dec_cfg, auto_decode, 10);
     
   i2s_comm_format_t comm_fmt = (i2s_comm_fmt_lsb_ ? I2S_COMM_FORMAT_STAND_I2S : I2S_COMM_FORMAT_STAND_MSB );  
   i2s_driver_config_t i2s_driver_config = {
       .mode = (i2s_mode_t) (I2S_MODE_MASTER | I2S_MODE_TX),
-      .sample_rate = this->sample_rate_,
-      .bits_per_sample = this->bits_per_sample_,
-      .channel_format = this->channel_fmt_,
+      .sample_rate = 44100,
+      .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
+      .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
       .communication_format = comm_fmt,
       .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
        //.intr_alloc_flags = ESP_INTR_FLAG_LEVEL2 | ESP_INTR_FLAG_IRAM,
@@ -383,8 +380,8 @@ void SimpleAdfMediaPipeline::pipeline_init_() {
       .volume = 0,
       .out_rb_size = i2s_stream_rb_size,
       .task_stack = I2S_STREAM_TASK_STACK,
-      .task_core = I2S_STREAM_TASK_CORE,
-      .task_prio = I2S_STREAM_TASK_PRIO,
+      .task_core = i2s_stream_task_core,
+      .task_prio = i2s_stream_task_prio,
       .stack_in_ext = false,
       .multi_out_num = 0,
       .uninstall_drv = false,
@@ -417,14 +414,12 @@ void SimpleAdfMediaPipeline::pipeline_init_() {
   esph_log_d(TAG, "Link it together http_stream-->esp_decoder-->i2s_stream-->[codec_chip]");
   const char *link_tag[3] = {"http", "decoder", "i2s"};
   audio_pipeline_link(pipeline_, &link_tag[0], 3);
-
-  audio_element_set_uri(http_stream_reader_, url_.c_str());
-  //esph_log_d(TAG, "Set Pipeline Url: %s", url_.c_str());
   
   audio_event_iface_cfg_t evt_cfg = AUDIO_EVENT_IFACE_DEFAULT_CFG();
   evt_ = audio_event_iface_init(&evt_cfg);
   esph_log_d(TAG, "set listener");
   audio_pipeline_set_listener(pipeline_, evt_);
+  is_initialized_ = true;
 }
 
 void SimpleAdfMediaPipeline::pipeline_deinit_() {
@@ -442,14 +437,20 @@ void SimpleAdfMediaPipeline::pipeline_deinit_() {
 
   /* Make sure audio_pipeline_remove_listener & audio_event_iface_remove_listener are called before destroying event_iface */
   audio_event_iface_destroy(evt_);
+  evt_ = nullptr;
 
   esph_log_d(TAG, "release all resources");
   audio_pipeline_deinit(pipeline_);
+  pipeline_ = nullptr;
   audio_element_deinit(http_stream_reader_);
+  http_stream_reader_ = nullptr;
   uninstall_i2s_driver_();
   audio_element_deinit(i2s_stream_writer_);
+  i2s_stream_writer_ = nullptr;
   audio_element_deinit(esp_decoder_);
+  esp_decoder_ = nullptr;
   parent_->unlock();
+  is_initialized_ = false;
 }
 
 int64_t SimpleAdfMediaPipeline::get_timestamp_() {
@@ -462,8 +463,16 @@ void SimpleAdfMediaPipeline::pipeline_run_() {
   int64_t timestamp = get_timestamp_();
   if (trying_to_launch_ && timestamp > launch_timestamp_) {
     trying_to_launch_ = false;
-    esph_log_d(TAG,"Pipeline Run, requested launch time: %lld, launch time: %lld",launch_timestamp_, timestamp);
-    audio_pipeline_run(pipeline_);
+    if (launch_timestamp_ > 0) {
+      esph_log_d(TAG,"Pipeline Run, requested launch time: %lld, launch time: %lld",launch_timestamp_, timestamp);
+    }
+    if (state_ == SimpleAdfPipelineState::RESUMING) {
+      audio_pipeline_resume(pipeline_);
+    }
+    else {
+      audio_pipeline_run(pipeline_);
+    }
+      
     is_launched_ = true;
     launch_timestamp_ = 0;
   }

@@ -85,7 +85,7 @@ class SimpleAdfMediaPipeline : public i2s_audio::I2SAudioOut {
   audio_element_handle_t i2s_stream_writer_{nullptr};
   audio_event_iface_handle_t evt_{nullptr};
   SimpleAdfPipelineState state_{SimpleAdfPipelineState::STOPPED};
-  std::string url_{"https://dl.espressif.com/dl/audio/ff-16b-2c-44100hz.mp3"};
+  std::string url_{""};
   bool is_announcement_{false};
   bool trying_to_launch_{false};
   bool is_launched_{false};

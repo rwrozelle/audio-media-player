@@ -36,11 +36,11 @@ class MultiRoomAudio {
   void loop();
   void listen();
   void unlisten();
-  void set_url(const std::string url, int64_t timestamp);
-  void start();
+  void set_url(const std::string url);
+  void start(int64_t timestamp);
   void stop();
   void pause();
-  void resume();
+  void resume(int64_t timestamp);
   void turn_on();
   void turn_off();
   void volume(float volume);

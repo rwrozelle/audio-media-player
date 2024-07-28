@@ -56,7 +56,7 @@ void MultiRoomAudio::loop() {
 
 void MultiRoomAudio::listen() {
   if (mrm_ == media_player::MEDIA_PLAYER_MRM_OFF) {
-    mrm_command_("listen");
+    mrm_command_("mrmlisten");
     esph_log_d(TAG, "multiRoomAudio_ listen");
     //this->listen_();
   }
@@ -64,36 +64,43 @@ void MultiRoomAudio::listen() {
 
 void MultiRoomAudio::unlisten() {
   if (mrm_ != media_player::MEDIA_PLAYER_MRM_OFF) {
-    mrm_command_("unlisten");
+    mrm_command_("mrmunlisten");
     esph_log_d(TAG, "multiRoomAudio_ unlisten");
     //this->unlisten_();
   }
 }
 
-void MultiRoomAudio::set_url(const std::string url, int64_t timestamp) {
-  std::string message = "{\"mrmurl\":\"" + url + "\"";
+void MultiRoomAudio::set_url(const std::string url) {
+  std::string message = "{\"mrmurl\":\"" + url + "\"}";
+  mrm_command_(message);
+}
+
+void MultiRoomAudio::start(int64_t timestamp) {
+  
+  std::string message = "{\"mrmstart\":\"\"";
   std::ostringstream otimestampt;
   otimestampt << timestamp;
   // send time as a string so that cJSON can parse
   message += ",\"timestamp\":\"" + otimestampt.str()+"\"}";
   mrm_command_(message);
-  //int mrm_position_interval_sec_ = 10;
-}
-
-void MultiRoomAudio::start() {
-  mrm_command_("start");
 }
 
 void MultiRoomAudio::stop() {
-  mrm_command_("stop");
+  mrm_command_("mrmstop");
 }
 
 void MultiRoomAudio::pause() {
-  mrm_command_("pause");
+  mrm_command_("mrmpause");
 }
 
-void MultiRoomAudio::resume() {
-  mrm_command_("resume");
+void MultiRoomAudio::resume(int64_t timestamp) {
+  
+  std::string message = "{\"mrmresume\":\"\"";
+  std::ostringstream otimestampt;
+  otimestampt << timestamp;
+  // send time as a string so that cJSON can parse
+  message += ",\"timestamp\":\"" + otimestampt.str()+"\"}";
+  mrm_command_(message);
 }
 
 void MultiRoomAudio::turn_on() {

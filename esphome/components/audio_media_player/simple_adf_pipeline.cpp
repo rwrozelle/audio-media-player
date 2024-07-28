@@ -145,36 +145,50 @@ void SimpleAdfMediaPipeline::play(bool resume) {
 
 void SimpleAdfMediaPipeline::stop(bool pause) {
 
-  esph_log_d(TAG, "Called stop with pipeline state: %s",pipeline_state_to_string(state_));
+  if (pause) {
+    esph_log_d(TAG, "Called pause with pipeline state: %s",pipeline_state_to_string(state_));
+  }
+  else {
+    esph_log_d(TAG, "Called stop with pipeline state: %s",pipeline_state_to_string(state_));
+  }
+  if (!pause && state_ == SimpleAdfPipelineState::PAUSED) {
+    clean_up();
+  }
 
   if (state_ == SimpleAdfPipelineState::STARTING
   || state_ == SimpleAdfPipelineState::RUNNING
   || state_ == SimpleAdfPipelineState::STOPPING
-  || state_ == SimpleAdfPipelineState::PAUSING) {
+  || state_ == SimpleAdfPipelineState::PAUSING
+  || state_ == SimpleAdfPipelineState::PAUSED) {
     if (pause) {
       set_state_(SimpleAdfPipelineState::PAUSING);
     }
     else {
       set_state_(SimpleAdfPipelineState::STOPPING);
     }
-    if (is_launched_) {
-      esph_log_d(TAG, "stop pipeline");
-      
-      if (pause) {
+    if (is_initialized_) {
+      if (pause && is_launched_) {
+        esph_log_d(TAG, "pause pipeline");
         audio_pipeline_pause(pipeline_);
+        audio_pipeline_wait_for_stop(pipeline_);
+        is_launched_ = false;
       }
-      else {
+      else if (!pause) {
+        esph_log_d(TAG, "stop pipeline");
         audio_pipeline_stop(pipeline_);
+        audio_pipeline_wait_for_stop(pipeline_);
+        is_launched_ = false;
       }
-      audio_pipeline_wait_for_stop(pipeline_);
-      is_launched_ = false;
     }
     if (is_initialized_ && !pause) {
+      esph_log_d(TAG, "reset pipeline");
       audio_pipeline_reset_ringbuffer(pipeline_);
       audio_pipeline_reset_elements(pipeline_);
-      audio_pipeline_change_state(pipeline_, AEL_STATE_INIT);
+      audio_pipeline_reset_items_state(pipeline_);
+      //audio_pipeline_change_state(pipeline_, AEL_STATE_INIT);
     }
     else if (is_initialized_ && pause) {
+      esph_log_d(TAG, "reset ring buffers");
       audio_pipeline_reset_ringbuffer(pipeline_);
     }
   }
@@ -291,6 +305,7 @@ SimpleAdfPipelineState SimpleAdfMediaPipeline::loop() {
             && message_status == AEL_STATUS_STATE_FINISHED) {
             esph_log_d(TAG, "Finished event received");
             set_state_(SimpleAdfPipelineState::STOPPING);
+            url_ = "";
           }
         }
         

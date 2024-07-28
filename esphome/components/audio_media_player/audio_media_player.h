@@ -66,10 +66,10 @@ class AudioMediaPlayer : public Component, public media_player::MediaPlayer, pub
   void mute_();
   void unmute_();
   
-  void pipeline_start_();
+  void pipeline_start_(int64_t launch_timestamp = 0);
   void pipeline_stop_();
   void pipeline_pause_();
-  void pipeline_resume_();
+  void pipeline_resume_(int64_t launch_timestamp = 0);
 
   void set_repeat_(media_player::MediaPlayerRepeatMode repeat);
   void set_shuffle_(bool shuffle);
@@ -114,6 +114,8 @@ class AudioMediaPlayer : public Component, public media_player::MediaPlayer, pub
   //int64_t mrm_position_timestamp_{0};
   //int mrm_position_interval_sec_{10};
   SimpleAdfPipelineState prior_pipeline_state_{SimpleAdfPipelineState::STOPPED};
+  bool announcing_{false};
+  media_player::MediaPlayerState pipeline_state_before_announcement_{media_player::MEDIA_PLAYER_STATE_NONE};
 };
 
 }  // namespace esp_adf

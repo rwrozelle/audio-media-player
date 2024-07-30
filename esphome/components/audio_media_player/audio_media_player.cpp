@@ -144,9 +144,8 @@ void AudioMediaPlayer::control(const media_player::MediaPlayerCall &call) {
         ADFUrlTrack track;
         track.url = call.get_media_url().value();
         audioPlaylists_.get_announcements()->push_back(track);
-        //stop what is currently playing, remember adf: http_stream closes connection, so 
-        //behavior is the music stops, the announcment happens and the music restarts at beginning
-        //separate out PAUSE, if resume ever works in future (lots of rework).
+        //stop what is currently playing.
+        //would need a separate pipeline sharing the i2s to not have to stop the track.
         pipeline_state_before_announcement_ = state;
         if (state == media_player::MEDIA_PLAYER_STATE_PLAYING || state == media_player::MEDIA_PLAYER_STATE_PAUSED) {
           this->play_intent_ = true;
@@ -197,8 +196,6 @@ void AudioMediaPlayer::control(const media_player::MediaPlayerCall &call) {
         if (state == media_player::MEDIA_PLAYER_STATE_PLAYING) {
           stop_();
         }
-        // pausing doesn't work for adf: http_stream, so don't expect this to ever be
-        // happening.
         if (state == media_player::MEDIA_PLAYER_STATE_PAUSED) {
           resume_();
         }
@@ -214,7 +211,6 @@ void AudioMediaPlayer::control(const media_player::MediaPlayerCall &call) {
           start_();
         }
         break;
-      // actually just stop and when "resume" happens restart at beginning
       case media_player::MEDIA_PLAYER_COMMAND_PAUSE:
         if (state == media_player::MEDIA_PLAYER_STATE_PLAYING) {
           this->play_track_id_ = audioPlaylists_.next_playlist_track_id();
@@ -440,6 +436,7 @@ void AudioMediaPlayer::on_pipeline_state_change(SimpleAdfPipelineState state) {
     case SimpleAdfPipelineState::PAUSED:
       this->state = media_player::MEDIA_PLAYER_STATE_PAUSED;
       publish_state();
+      this->high_freq_.stop();
       break;
     default:
       break;

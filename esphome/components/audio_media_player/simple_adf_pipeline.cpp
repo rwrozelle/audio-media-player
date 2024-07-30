@@ -169,8 +169,9 @@ void SimpleAdfMediaPipeline::stop(bool pause) {
     if (is_initialized_) {
       if (pause && is_launched_) {
         esph_log_d(TAG, "pause pipeline");
-        audio_pipeline_pause(pipeline_);
-        audio_pipeline_wait_for_stop(pipeline_);
+        //audio_pipeline_pause(pipeline_);
+        //audio_pipeline_wait_for_stop(pipeline_);
+        audio_element_pause(i2s_stream_writer_);
         is_launched_ = false;
       }
       else if (!pause) {
@@ -188,8 +189,8 @@ void SimpleAdfMediaPipeline::stop(bool pause) {
       //audio_pipeline_change_state(pipeline_, AEL_STATE_INIT);
     }
     else if (is_initialized_ && pause) {
-      esph_log_d(TAG, "reset ring buffers");
-      audio_pipeline_reset_ringbuffer(pipeline_);
+      //esph_log_d(TAG, "reset ring buffers");
+      //audio_pipeline_reset_ringbuffer(pipeline_);
     }
   }
   if (pause) {
@@ -278,7 +279,7 @@ SimpleAdfPipelineState SimpleAdfMediaPipeline::loop() {
         audio_element_status_t status;
         std::memcpy(&status, &msg.data, sizeof(audio_element_status_t));
         audio_element_handle_t el = (audio_element_handle_t) msg.source;
-        esph_log_i(TAG, "[ %s ] status: %s", audio_element_get_tag(el), audio_element_status_to_string(status));
+        esph_log_i(TAG, "[ %s ] status: %s, pipeline state: %s", audio_element_get_tag(el), audio_element_status_to_string(status), pipeline_state_to_string(state_));
         int message_status = (int)msg.data;
       
         if (state_ == SimpleAdfPipelineState::STARTING || state_ == SimpleAdfPipelineState::RESUMING) {
@@ -482,7 +483,9 @@ void SimpleAdfMediaPipeline::pipeline_run_() {
       esph_log_d(TAG,"Pipeline Run, requested launch time: %lld, launch time: %lld",launch_timestamp_, timestamp);
     }
     if (state_ == SimpleAdfPipelineState::RESUMING) {
-      audio_pipeline_resume(pipeline_);
+      //audio_pipeline_resume(pipeline_);
+      audio_element_resume(i2s_stream_writer_, 0, 2000 / portTICK_RATE_MS);
+      set_state_(SimpleAdfPipelineState::RUNNING);
     }
     else {
       audio_pipeline_run(pipeline_);

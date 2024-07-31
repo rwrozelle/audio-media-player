@@ -151,8 +151,9 @@ void SimpleAdfMediaPipeline::stop(bool pause) {
   else {
     esph_log_d(TAG, "Called stop with pipeline state: %s",pipeline_state_to_string(state_));
   }
+  bool cleanup_ = false;
   if (!pause && state_ == SimpleAdfPipelineState::PAUSED) {
-    clean_up();
+    cleanup_ = true;
   }
 
   if (state_ == SimpleAdfPipelineState::STARTING
@@ -191,6 +192,10 @@ void SimpleAdfMediaPipeline::stop(bool pause) {
     else if (is_initialized_ && pause) {
       //esph_log_d(TAG, "reset ring buffers");
       //audio_pipeline_reset_ringbuffer(pipeline_);
+    }
+    
+    if (cleanup_) {
+      clean_up();
     }
   }
   if (pause) {
@@ -270,10 +275,15 @@ SimpleAdfPipelineState SimpleAdfMediaPipeline::loop() {
         esph_log_d(TAG, "[ decoder ] Receive music info, sample_rates=%d, bits=%d, ch=%d",
                 music_info.sample_rates, music_info.bits, music_info.channels);
 
-        i2s_stream_set_clk(i2s_stream_writer_, music_info.sample_rates, music_info.bits, music_info.channels);
-        esph_log_d(TAG,"updated i2s_stream with music_info");
-        is_music_info_set_ = true;
+        if (rate_ != music_info.sample_rates || bits_ != music_info.bits || ch_ != music_info.channels) {
+          i2s_stream_set_clk(i2s_stream_writer_, music_info.sample_rates, music_info.bits, music_info.channels);
+          esph_log_d(TAG,"updated i2s_stream with music_info");
+          rate_ = music_info.sample_rates;
+          bits_ = music_info.bits;
+          ch_ = music_info.channels;
         }
+        is_music_info_set_ = true;
+      }
             
       if (msg.source_type == AUDIO_ELEMENT_TYPE_ELEMENT && msg.cmd == AEL_MSG_CMD_REPORT_STATUS) {
         audio_element_status_t status;
@@ -355,6 +365,10 @@ void SimpleAdfMediaPipeline::pipeline_init_() {
     auto_dec_cfg.task_prio = esp_decoder_task_prio;
     
   esph_log_d(TAG, "init esp_decoder");
+  
+    rate_=44100;
+    bits_=16;
+    ch_=2;
     esp_decoder_ = esp_decoder_init(&auto_dec_cfg, auto_decode, 10);
     
   i2s_comm_format_t comm_fmt = (i2s_comm_fmt_lsb_ ? I2S_COMM_FORMAT_STAND_I2S : I2S_COMM_FORMAT_STAND_MSB );  

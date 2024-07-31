@@ -14,7 +14,7 @@ This external component provides an audio media-player with the following HA Ava
 * volume_set
 * volume_mute
 * media_play
-* media_pause - restarts track when resumed
+* media_pause
 * media_stop
 * media_next_track
 * media_previous_track
@@ -75,14 +75,18 @@ esp32:
   flash_size: 16MB
   framework:
     type: esp-idf
-    # below sdkconfig options are scavenged from internet, appears to help with running some internet radio stations.
     sdkconfig_options:
       CONFIG_ESP32_S3_BOX_BOARD: "y"
+
+      # below sdkconfig options are scavenged from internet, appears to help with running some internet radio stations.
+      #https://github.com/espressif/esp-adf/issues/297
+      
+      CONFIG_ESP32_DEFAULT_CPU_FREQ_240: "y"
+      CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ: "240"
 
       #Wi-Fi
       CONFIG_ESP32_WIFI_STATIC_RX_BUFFER_NUM: "16"
       CONFIG_ESP32_WIFI_DYNAMIC_RX_BUFFER_NUM: "512"
-
       CONFIG_ESP32_WIFI_STATIC_TX_BUFFER: "y"
       CONFIG_ESP32_WIFI_TX_BUFFER_TYPE: "0"
       CONFIG_ESP32_WIFI_STATIC_TX_BUFFER_NUM: "8"
@@ -93,20 +97,17 @@ esp32:
       CONFIG_ESP32_WIFI_AMPDU_RX_ENABLED: "y"
       CONFIG_ESP32_WIFI_RX_BA_WIN: "32"
 
-      #LWIP
+      #LWIP/TCP
       CONFIG_TCPIP_RECVMBOX_SIZE: "512"
-
-      #TCP
-      CONFIG_TCP_SND_BUF_DEFAULT: "65535"
-      CONFIG_TCP_WND_DEFAULT: "512000"
-      CONFIG_TCP_RECVMBOX_SIZE: "512"
-
       CONFIG_LWIP_MAX_ACTIVE_TCP: "16"
       CONFIG_LWIP_MAX_LISTENING_TCP: "16"
       CONFIG_TCP_MAXRTX: "12"
       CONFIG_TCP_SYNMAXRTX: "6"
       CONFIG_TCP_MSS: "1436"
       CONFIG_TCP_MSL: "60000"
+      CONFIG_TCP_SND_BUF_DEFAULT: "65535"
+      CONFIG_TCP_WND_DEFAULT: "512000"
+      CONFIG_TCP_RECVMBOX_SIZE: "512"
       CONFIG_TCP_QUEUE_OOSEQ: "y"
       CONFIG_ESP_TCP_KEEP_CONNECTION_WHEN_IP_CHANGES: ""
       CONFIG_TCP_OVERSIZE_MSS: "y"
@@ -242,6 +243,7 @@ Announcements are added to a separate "announcements" playlist and current playl
 There is commented code which is an attempt to synchronize sound accross the group members leveraging multicast. I never could get it to work right. Instead, code attempts to get group members to start each track at the same time as the leader.
 
 Best used when speakers are not in earshot of each other since small variation in play timing is inevitable with this approach.
+I've noticed some chatter that I think is caused by my Media Server being overwhelmed by multiple requests of same file.  This may be an incorrect thought.
 
 The knowledge of the group members does not survive a reboot. Here is an example script to set the group members:
 ```

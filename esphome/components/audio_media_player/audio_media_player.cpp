@@ -34,18 +34,26 @@ void AudioMediaPlayer::publish_state() {
     switch (state) {
       case media_player::MEDIA_PLAYER_STATE_PLAYING:
         if (duration_ > 0 && timestamp_sec_ > 0) {
-          set_position_(get_timestamp_sec_() - timestamp_sec_);
+          set_position_(offset_sec_ + (get_timestamp_sec_() - timestamp_sec_));
+        }
+        else {
+          set_position_(0);
+        }
+        break;
+      case media_player::MEDIA_PLAYER_STATE_PAUSED:
+        if (duration_ > 0 && timestamp_sec_ > 0) {
+          set_position_(offset_sec_);
         }
         else {
           set_position_(0);
         }
         break;
       default:
-        set_duration_(0);
+        //set_duration_(0);
         set_position_(0);
         break;
     }
-    esph_log_d(TAG, "Publish State, position: %d",position());
+    esph_log_d(TAG, "Publish State, position: %d, duration: %d",position(),duration());
     this->state_callback_.call();
     this->prior_state = this->state;
     this->force_publish_ = false;
@@ -69,6 +77,12 @@ void AudioMediaPlayer::loop() {
     if (pipeline_state != prior_pipeline_state_) {
       on_pipeline_state_change(pipeline_state);
       prior_pipeline_state_ = pipeline_state;
+    }
+    
+    if (pipeline_state == SimpleAdfPipelineState::PAUSED
+        && ((get_timestamp_sec_() - pause_timestamp_sec_) > pause_interval_sec)) {
+      this->play_intent_ = false;
+      stop_();
     }
     
     //multiRoomAudio_.loop();
@@ -365,7 +379,9 @@ void AudioMediaPlayer::on_pipeline_state_change(SimpleAdfPipelineState state) {
   esph_log_i(TAG, "got new pipeline state: %s", pipeline_state_to_string(state));
   switch (state) {
     case SimpleAdfPipelineState::STARTING:
+     break;
     case SimpleAdfPipelineState::RESUMING:
+     break;
     case SimpleAdfPipelineState::RUNNING:
       this->set_volume_( this->volume, false);
       if (is_announcement_()) {
@@ -374,12 +390,7 @@ void AudioMediaPlayer::on_pipeline_state_change(SimpleAdfPipelineState state) {
       }
       else {
         this->state = media_player::MEDIA_PLAYER_STATE_PLAYING;
-        if (state == SimpleAdfPipelineState::RUNNING) {
-          timestamp_sec_ = get_timestamp_sec_();
-        }
-        else {
-          timestamp_sec_ = 0;
-        }
+        timestamp_sec_ = get_timestamp_sec_();
       }
       publish_state();
       break;
@@ -389,8 +400,8 @@ void AudioMediaPlayer::on_pipeline_state_change(SimpleAdfPipelineState state) {
       set_artist_("");
       set_album_("");
       set_title_("");
-      set_duration_(0);
-      set_position_(0);
+      //set_duration_(0);
+      //set_position_(0);
       this->state = media_player::MEDIA_PLAYER_STATE_IDLE;
       publish_state();
       multiRoomAudio_.stop();
@@ -433,7 +444,10 @@ void AudioMediaPlayer::on_pipeline_state_change(SimpleAdfPipelineState state) {
       }
       break;
     case SimpleAdfPipelineState::PAUSING:
+      break;
     case SimpleAdfPipelineState::PAUSED:
+      offset_sec_ = offset_sec_ + (get_timestamp_sec_() - timestamp_sec_);
+      pause_timestamp_sec_ = get_timestamp_sec_();
       this->state = media_player::MEDIA_PLAYER_STATE_PAUSED;
       publish_state();
       this->high_freq_.stop();
@@ -593,6 +607,8 @@ void AudioMediaPlayer::set_playlist_track_(ADFPlaylistTrack track) {
     set_title_(track.title);
   }
   set_duration_(track.duration);
+  offset_sec_ = 0;
+  set_position_(0);
 
   esph_log_d(TAG, "set_playlist_track: %s: %s: %s duration: %d %s",
      artist_.c_str(), album_.c_str(), title_.c_str(), duration_, track.url.c_str());

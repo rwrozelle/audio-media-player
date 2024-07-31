@@ -46,7 +46,10 @@ class AudioMediaPlayer : public Component, public media_player::MediaPlayer, pub
 
   media_player::MediaPlayerState prior_state{media_player::MEDIA_PLAYER_STATE_NONE};
 
+  //microseconds
   int64_t mrm_run_interval = 1500000L;
+  //seconds
+  int64_t pause_interval_sec = 600;
 
  protected:
   HighFrequencyLoopRequester high_freq_;
@@ -109,6 +112,8 @@ class AudioMediaPlayer : public Component, public media_player::MediaPlayer, pub
   bool play_intent_{false};
   bool turning_off_{false};
   int32_t timestamp_sec_{0};
+  int32_t pause_timestamp_sec_{0};
+  int32_t offset_sec_{0};
 
   int play_track_id_{-1};
   //int64_t mrm_position_timestamp_{0};

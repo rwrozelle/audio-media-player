@@ -2,7 +2,6 @@
 
 #ifdef USE_ESP_IDF
 
-#include <esp_http_client.h>
 #include <audio_error.h>
 #include <audio_mem.h>
 #include <cJSON.h>
@@ -51,6 +50,7 @@ void AudioMediaPlayer::publish_state() {
       default:
         //set_duration_(0);
         set_position_(0);
+        offset_sec_ = 0;
         break;
     }
     esph_log_d(TAG, "Publish State, position: %d, duration: %d",position(),duration());
@@ -84,17 +84,18 @@ void AudioMediaPlayer::loop() {
       this->play_intent_ = false;
       stop_();
     }
-    
-    //multiRoomAudio_.loop();
-    //mrm_process_recv_actions_();
-    //mrm_process_send_actions_();
+    //if (multiRoomAudio_ != nullptr) {
+    //  multiRoomAudio_->loop();
+    //  mrm_process_recv_actions_();
+    //  mrm_process_send_actions_();
+    //}
 }
 
 void AudioMediaPlayer::control(const media_player::MediaPlayerCall &call) {
   esph_log_d(TAG, "control call while state: %s", media_player_state_to_string(state));
 
-  if (multiRoomAudio_.get_group_members().length() > 0) {
-    multiRoomAudio_.set_mrm(media_player::MEDIA_PLAYER_MRM_LEADER);
+  if (multiRoomAudio_ != nullptr && multiRoomAudio_->get_group_members().length() > 0) {
+    multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_LEADER);
   }
 
   //Media File is sent (no command)
@@ -103,39 +104,43 @@ void AudioMediaPlayer::control(const media_player::MediaPlayerCall &call) {
     std::string media_url = call.get_media_url().value();
     //special cases for setting mrm commands
     if (media_url == "mrmlisten") {
-      multiRoomAudio_.set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
+      if (multiRoomAudio_ != nullptr) {
+        init_mrm_();
+      }
+      multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
     }
-    else if (media_url == "mrmunlisten") {
-      multiRoomAudio_.set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
-      multiRoomAudio_.unlisten();
-      multiRoomAudio_.set_mrm(media_player::MEDIA_PLAYER_MRM_OFF);
+    else if (multiRoomAudio_ != nullptr && media_url == "mrmunlisten") {
+      multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
+      multiRoomAudio_->unlisten();
+      multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_OFF);
+      multiRoomAudio_ = nullptr;
     }
-    else if (media_url.rfind("{\"mrmstart\"", 0) == 0) {
-      multiRoomAudio_.set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
+    else if (multiRoomAudio_ != nullptr && media_url.rfind("{\"mrmstart\"", 0) == 0) {
+      multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
       cJSON *root = cJSON_Parse(media_url.c_str());
       std::string timestamp_str = cJSON_GetObjectItem(root,"timestamp")->valuestring;
       int64_t timestamp = strtoll(timestamp_str.c_str(), NULL, 10);
       cJSON_Delete(root);
       pipeline_start_(timestamp);
     }
-    else if (media_url == "mrmstop") {
-      multiRoomAudio_.set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
+    else if (multiRoomAudio_ != nullptr && media_url == "mrmstop") {
+      multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
       pipeline_stop_();
     }
-    else if (media_url == "mrmpause") {
-      multiRoomAudio_.set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
+    else if (multiRoomAudio_ != nullptr && media_url == "mrmpause") {
+      multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
       pipeline_pause_();
     }
-    else if (media_url.rfind("{\"mrmresume\"", 0) == 0) {
-      multiRoomAudio_.set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
+    else if (multiRoomAudio_ != nullptr && media_url.rfind("{\"mrmresume\"", 0) == 0) {
+      multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
       cJSON *root = cJSON_Parse(media_url.c_str());
       std::string timestamp_str = cJSON_GetObjectItem(root,"timestamp")->valuestring;
       int64_t timestamp = strtoll(timestamp_str.c_str(), NULL, 10);
       cJSON_Delete(root);
       pipeline_resume_(timestamp);
     }
-    else if (media_url.rfind("{\"mrmurl\"", 0) == 0) {
-      multiRoomAudio_.set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
+    else if (multiRoomAudio_ != nullptr && media_url.rfind("{\"mrmurl\"", 0) == 0) {
+      multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
       cJSON *root = cJSON_Parse(media_url.c_str());
       std::string mrmurl = cJSON_GetObjectItem(root,"mrmurl")->valuestring;
       cJSON_Delete(root);
@@ -277,7 +282,9 @@ void AudioMediaPlayer::control(const media_player::MediaPlayerCall &call) {
         if (state == media_player::MEDIA_PLAYER_STATE_OFF) {
           state = media_player::MEDIA_PLAYER_STATE_ON;
           publish_state();
-          multiRoomAudio_.turn_on();
+          if (multiRoomAudio_ != nullptr) {
+            multiRoomAudio_->turn_on();
+          }
         }
         else {
           if (state == media_player::MEDIA_PLAYER_STATE_PLAYING 
@@ -295,7 +302,9 @@ void AudioMediaPlayer::control(const media_player::MediaPlayerCall &call) {
             pipeline_.clean_up();
             state = media_player::MEDIA_PLAYER_STATE_OFF;
             publish_state();
-            multiRoomAudio_.turn_on();
+            if (multiRoomAudio_ != nullptr) {
+              multiRoomAudio_->turn_off();
+            }
           }
         }
         break;
@@ -303,7 +312,9 @@ void AudioMediaPlayer::control(const media_player::MediaPlayerCall &call) {
         if (state == media_player::MEDIA_PLAYER_STATE_OFF) {
             state = media_player::MEDIA_PLAYER_STATE_ON;
             publish_state();
-            multiRoomAudio_.turn_on();
+            if (multiRoomAudio_ != nullptr) {
+              multiRoomAudio_->turn_on();
+            }
         }
         break;
       }
@@ -324,7 +335,9 @@ void AudioMediaPlayer::control(const media_player::MediaPlayerCall &call) {
             pipeline_.clean_up();
             state = media_player::MEDIA_PLAYER_STATE_OFF;
             publish_state();
-            multiRoomAudio_.turn_off();
+            if (multiRoomAudio_ != nullptr) {
+              multiRoomAudio_->turn_off();
+            }
           }
         }
         break;
@@ -355,17 +368,22 @@ void AudioMediaPlayer::control(const media_player::MediaPlayerCall &call) {
       }
       case media_player::MEDIA_PLAYER_COMMAND_JOIN: {
         if (call.get_group_members().has_value()) {
-          multiRoomAudio_.set_group_members(call.get_group_members().value());
-          multiRoomAudio_.set_mrm(media_player::MEDIA_PLAYER_MRM_LEADER);
-          multiRoomAudio_.listen();
+          
+          if (multiRoomAudio_ != nullptr) {
+            init_mrm_();
+          } 
+          multiRoomAudio_->set_group_members(call.get_group_members().value());
+          multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_LEADER);
+          multiRoomAudio_->listen();
         }
         break;
       }
       case media_player::MEDIA_PLAYER_COMMAND_UNJOIN: {
-        multiRoomAudio_.set_mrm(media_player::MEDIA_PLAYER_MRM_LEADER);
-        multiRoomAudio_.unlisten();
-        multiRoomAudio_.get_group_members() = "";
-        multiRoomAudio_.set_mrm(media_player::MEDIA_PLAYER_MRM_OFF);
+        multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_LEADER);
+        multiRoomAudio_->unlisten();
+        multiRoomAudio_->get_group_members() = "";
+        multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_OFF);
+        multiRoomAudio_ = nullptr;
         break;
       }
       default:
@@ -404,8 +422,9 @@ void AudioMediaPlayer::on_pipeline_state_change(SimpleAdfPipelineState state) {
       //set_position_(0);
       this->state = media_player::MEDIA_PLAYER_STATE_IDLE;
       publish_state();
-      multiRoomAudio_.stop();
-
+      if (multiRoomAudio_ != nullptr) {
+        multiRoomAudio_->stop();
+      }
       if (this->turning_off_) {
         if (HighFrequencyLoopRequester::is_high_frequency()) {
           esph_log_d(TAG,"Set Loop to run normal cycle");
@@ -414,7 +433,9 @@ void AudioMediaPlayer::on_pipeline_state_change(SimpleAdfPipelineState state) {
         pipeline_.clean_up();
         this->state = media_player::MEDIA_PLAYER_STATE_OFF;
         publish_state();
-        multiRoomAudio_.turn_off();
+        if (multiRoomAudio_ != nullptr) {
+          multiRoomAudio_->turn_off();
+        }
         turning_off_ = false;
       }
       else {
@@ -462,28 +483,34 @@ void AudioMediaPlayer::start_()
   esph_log_d(TAG,"start_()");
   
   int64_t timestamp = 0;
-  if (multiRoomAudio_.get_mrm() == media_player::MEDIA_PLAYER_MRM_LEADER) {
-    timestamp = multiRoomAudio_.get_timestamp() + mrm_run_interval;
+  if (multiRoomAudio_ != nullptr) {
+    if (multiRoomAudio_->get_mrm() == media_player::MEDIA_PLAYER_MRM_LEADER) {
+      timestamp = multiRoomAudio_->get_timestamp() + mrm_run_interval;
+    }
+    multiRoomAudio_->start(timestamp);
   }
-  multiRoomAudio_.start(timestamp);
   pipeline_start_(timestamp);
 }
 
 void AudioMediaPlayer::stop_() {
   esph_log_d(TAG,"stop_()");
   pipeline_stop_();
-  if (turning_off_) {
-    multiRoomAudio_.turn_off();
-  }
-  else {
-    multiRoomAudio_.stop();
+  if (multiRoomAudio_ != nullptr) {
+    if (turning_off_) {
+      multiRoomAudio_->turn_off();
+    }
+    else {
+      multiRoomAudio_->stop();
+    }
   }
 }
 
 void AudioMediaPlayer::pause_() {
   esph_log_d(TAG,"pause_()");
   pipeline_pause_();
-  multiRoomAudio_.pause();
+  if (multiRoomAudio_ != nullptr) {
+    multiRoomAudio_->pause();
+  }
 }
 
 void AudioMediaPlayer::resume_()
@@ -491,10 +518,12 @@ void AudioMediaPlayer::resume_()
   esph_log_d(TAG,"resume_()");
   
   int64_t timestamp = 0;
-  if (multiRoomAudio_.get_mrm() == media_player::MEDIA_PLAYER_MRM_LEADER) {
-    timestamp = multiRoomAudio_.get_timestamp() + mrm_run_interval;
+  if (multiRoomAudio_ != nullptr) {
+    if (multiRoomAudio_->get_mrm() == media_player::MEDIA_PLAYER_MRM_LEADER) {
+      timestamp = multiRoomAudio_->get_timestamp() + mrm_run_interval;
+    }
+    multiRoomAudio_->resume(timestamp);
   }
-  multiRoomAudio_.resume(timestamp);
   pipeline_resume_(timestamp);
 }
 
@@ -508,7 +537,9 @@ void AudioMediaPlayer::set_volume_(float volume, bool publish) {
   if (publish) {
     force_publish_ = true;
     publish_state();
-    multiRoomAudio_.volume(volume);
+    if (multiRoomAudio_ != nullptr) {
+      multiRoomAudio_->volume(volume);
+    }
   }
 }
 
@@ -517,7 +548,9 @@ void AudioMediaPlayer::mute_() {
   muted_ = true;
   force_publish_ = true;
   publish_state();
-  multiRoomAudio_.mute();
+  if (multiRoomAudio_ != nullptr) {
+    multiRoomAudio_->mute();
+  }
 }
 
 void AudioMediaPlayer::unmute_() {
@@ -525,7 +558,9 @@ void AudioMediaPlayer::unmute_() {
   muted_ = false;
   force_publish_ = true;
   publish_state();
-  multiRoomAudio_.unmute();
+  if (multiRoomAudio_ != nullptr) {
+    multiRoomAudio_->unmute();
+  }
 }
 
 
@@ -613,7 +648,9 @@ void AudioMediaPlayer::set_playlist_track_(ADFPlaylistTrack track) {
   esph_log_d(TAG, "set_playlist_track: %s: %s: %s duration: %d %s",
      artist_.c_str(), album_.c_str(), title_.c_str(), duration_, track.url.c_str());
   pipeline_.set_url(track.url);
-  multiRoomAudio_.set_url(track.url);
+  if (multiRoomAudio_ != nullptr) {
+    multiRoomAudio_->set_url(track.url);
+  }
 }
 
 void AudioMediaPlayer::play_next_track_on_playlist_(int track_id) {
@@ -653,7 +690,9 @@ bool AudioMediaPlayer::play_next_track_on_announcements_() {
         pipeline_.set_url((*audioPlaylists_.get_announcements())[i].url, true);
         (*audioPlaylists_.get_announcements())[i].is_played = true;
         retBool = true;
-        multiRoomAudio_.set_url((*audioPlaylists_.get_announcements())[i].url);
+        if (multiRoomAudio_ != nullptr) {
+          multiRoomAudio_->set_url((*audioPlaylists_.get_announcements())[i].url);
+        }
       }
     }
     if (!retBool) {
@@ -671,75 +710,78 @@ int32_t AudioMediaPlayer::get_timestamp_sec_() {
 
 /*
 void AudioMediaPlayer::mrm_process_send_actions_() {
-  if (multiRoomAudio_.get_mrm() == media_player::MEDIA_PLAYER_MRM_LEADER
+  if (multiRoomAudio_ != nullptr
+        && multiRoomAudio_->get_mrm() == media_player::MEDIA_PLAYER_MRM_LEADER
         && pipeline_.get_state() == SimpleAdfPipelineState::RUNNING
         && duration() > 0
-        && ((multiRoomAudio_.get_timestamp() - mrm_position_timestamp_) > (mrm_position_interval_sec_ * 1000000L)))
+        && ((multiRoomAudio_->get_timestamp() - mrm_position_timestamp_) > (mrm_position_interval_sec_ * 1000000L)))
   {
     audio_element_info_t info{};
     audio_element_getinfo(pipeline_.get_esp_decoder(), &info);
-    mrm_position_timestamp_ = multiRoomAudio_.get_timestamp();
+    mrm_position_timestamp_ = multiRoomAudio_->get_timestamp();
     int64_t position_byte = info.byte_pos;
     if (position_byte > 100 * 1024) {
       esph_log_v(TAG, "multiRoomAudio_ send position");
-      this->multiRoomAudio_.send_position(mrm_position_timestamp_, position_byte);
+      this->multiRoomAudio_->send_position(mrm_position_timestamp_, position_byte);
     }
   }
 }
 
 void AudioMediaPlayer::mrm_process_recv_actions_() {  
-  if (this->multiRoomAudio_.recv_actions.size() > 0) {
-    std::string action = this->multiRoomAudio_.recv_actions.front().type;
+  if (multiRoomAudio_ != nullptr && this->multiRoomAudio_->recv_actions.size() > 0) {
+    std::string action = this->multiRoomAudio_->recv_actions.front().type;
 
     if (action == "sync_position" 
-      && multiRoomAudio_.get_mrm() == media_player::MEDIA_PLAYER_MRM_FOLLOWER
-      && ((multiRoomAudio_.get_timestamp() - mrm_position_timestamp_) > (mrm_position_interval_sec_ * 1000000L))
+      && multiRoomAudio_->get_mrm() == media_player::MEDIA_PLAYER_MRM_FOLLOWER
+      && ((multiRoomAudio_->get_timestamp() - mrm_position_timestamp_) > (mrm_position_interval_sec_ * 1000000L))
       )
     {
-      int64_t timestamp = this->multiRoomAudio_.recv_actions.front().timestamp;
-      std::string position_str = this->multiRoomAudio_.recv_actions.front().data;
+      int64_t timestamp = this->multiRoomAudio_->recv_actions.front().timestamp;
+      std::string position_str = this->multiRoomAudio_->recv_actions.front().data;
       int64_t position = strtoll(position_str.c_str(), NULL, 10);
       this->mrm_sync_position_(timestamp, position);
     }
-    this->multiRoomAudio_.recv_actions.pop();
+    this->multiRoomAudio_->recv_actions.pop();
   }
 }
 
 void AudioMediaPlayer::mrm_sync_position_(int64_t timestamp, int64_t position) {
-  if (multiRoomAudio_.get_mrm() == media_player::MEDIA_PLAYER_MRM_FOLLOWER
-    && pipeline_.get_state() == SimpleAdfPipelineState::RUNNING
-    && state == media_player::MEDIA_PLAYER_STATE_PLAYING
-    )
-  {
-    audio_element_info_t info{};
-    audio_element_getinfo(pipeline_.get_esp_decoder(), &info);
-    mrm_position_timestamp_ = multiRoomAudio_.get_timestamp();
-    int64_t local_position = info.byte_pos;
-    
-    if (local_position > 100 * 1024) {
-      int32_t bps = (int32_t)(info.sample_rates * info.channels * info.bits / 8);
-      float adj_sec = ((mrm_position_timestamp_ - timestamp) / 1000000.0);
-      int64_t adjusted_position = round((adj_sec * bps) + position);
-      int32_t delay_size = (int32_t)(adjusted_position - local_position);
-      esph_log_d(TAG,"sync_position: leader: %lld, follower: %lld, diff: %d, adj_sec: %f", adjusted_position, local_position, delay_size, adj_sec);
-      if (delay_size < -.1 * bps) {
-        if (delay_size < -.2 * bps) {
-          delay_size = -.2 * bps;
+  if (multiRoomAudio_ != nullptr) {
+    if (multiRoomAudio_->get_mrm() == media_player::MEDIA_PLAYER_MRM_FOLLOWER
+      && pipeline_.get_state() == SimpleAdfPipelineState::RUNNING
+      && state == media_player::MEDIA_PLAYER_STATE_PLAYING
+      )
+    {
+      audio_element_info_t info{};
+      audio_element_getinfo(pipeline_.get_esp_decoder(), &info);
+      mrm_position_timestamp_ = multiRoomAudio_->get_timestamp();
+      int64_t local_position = info.byte_pos;
+      
+      if (local_position > 100 * 1024) {
+        int32_t bps = (int32_t)(info.sample_rates * info.channels * info.bits / 8);
+        float adj_sec = ((mrm_position_timestamp_ - timestamp) / 1000000.0);
+        int64_t adjusted_position = round((adj_sec * bps) + position);
+        int32_t delay_size = (int32_t)(adjusted_position - local_position);
+        esph_log_d(TAG,"sync_position: leader: %lld, follower: %lld, diff: %d, adj_sec: %f", adjusted_position, local_position, delay_size, adj_sec);
+        if (delay_size < -.1 * bps) {
+          if (delay_size < -.2 * bps) {
+            delay_size = -.2 * bps;
+          }
+          i2s_stream_sync_delay_(pipeline_.get_i2s_stream_writer(), delay_size);
+           esph_log_d(TAG,"sync_position done, delay_size: %d", delay_size);
+           mrm_position_interval_sec_ = 1;
         }
-        i2s_stream_sync_delay_(pipeline_.get_i2s_stream_writer(), delay_size);
-         esph_log_d(TAG,"sync_position done, delay_size: %d", delay_size);
-         mrm_position_interval_sec_ = 1;
-      }
-      else if (delay_size > .1 * bps) {
-        if (delay_size > .2 * bps) {
-          delay_size = .2 * bps;
+        else if (delay_size > .1 * bps) {
+          if (delay_size > .2 * bps) {
+            delay_size = .2 * bps;
+          }
+          i2s_stream_sync_delay_(pipeline_.get_i2s_stream_writer(), delay_size);
+          esph_log_d(TAG,"sync_position done, delay_size: %d", delay_size);
+          mrm_position_interval_sec_ = 1;
         }
-        i2s_stream_sync_delay_(pipeline_.get_i2s_stream_writer(), delay_size);
-        esph_log_d(TAG,"sync_position done, delay_size: %d", delay_size);
-        mrm_position_interval_sec_ = 1;
-      }
-      else {
-        mrm_position_interval_sec_ = 30;
+        else {
+          mrm_position_interval_sec_ = 30;
+        }
       }
     }
   }

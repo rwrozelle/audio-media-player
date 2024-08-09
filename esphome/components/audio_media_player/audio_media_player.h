@@ -42,8 +42,8 @@ class AudioMediaPlayer : public Component, public media_player::MediaPlayer, pub
 #endif
   void set_external_dac_channels(uint8_t channels) { this->pipeline_.set_external_dac_channels(channels); }
   void set_i2s_comm_fmt_lsb(bool lsb) { this->pipeline_.set_i2s_comm_fmt_lsb(lsb); }
-  void set_use_adf_alc(bool use_alc){ this->pipeline_.set_use_adf_alc(use_alc); }
-
+  void set_use_adf_alc(bool use_alc) { this->pipeline_.set_use_adf_alc(use_alc); }
+  
   media_player::MediaPlayerState prior_state{media_player::MEDIA_PLAYER_STATE_NONE};
 
   //microseconds
@@ -87,6 +87,8 @@ class AudioMediaPlayer : public Component, public media_player::MediaPlayer, pub
   bool play_next_track_on_announcements_();
 
   int32_t get_timestamp_sec_();
+  
+  void init_mrm_(){ this->multiRoomAudio_ = make_unique<MultiRoomAudio>(); }
 
 /*
   void mrm_process_recv_actions_();
@@ -96,8 +98,8 @@ class AudioMediaPlayer : public Component, public media_player::MediaPlayer, pub
 */
 
   SimpleAdfMediaPipeline pipeline_;
-  MultiRoomAudio multiRoomAudio_;
   AudioPlaylists audioPlaylists_;
+  std::unique_ptr<MultiRoomAudio> multiRoomAudio_;
 
   int force_publish_{false};
 

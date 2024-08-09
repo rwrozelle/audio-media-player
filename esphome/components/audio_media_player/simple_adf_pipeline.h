@@ -92,6 +92,9 @@ class SimpleAdfMediaPipeline : public i2s_audio::I2SAudioOut {
   int64_t launch_timestamp_{0};
   bool is_initialized_{false};
   bool is_music_info_set_{false};
+  int rate_{44100};
+  int bits_{16};
+  int ch_{2};
 };
 
 }  // namespace esp_adf

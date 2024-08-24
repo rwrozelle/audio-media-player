@@ -47,20 +47,20 @@ class SimpleAdfMediaPipeline : public i2s_audio::I2SAudioOut {
 
   void dump_config();
   void set_url(const std::string& url, bool is_announcement = false);
-  void set_launch_timestamp(int64_t launch_timestamp) {launch_timestamp_ = launch_timestamp; }
+  void set_launch_timestamp(int64_t launch_timestamp) {this->launch_timestamp_ = launch_timestamp; }
   void play(bool resume = false);
   void stop(bool pause = false);
   void pause() { stop(true); }
-  void resume() { play(true); }
+  void resume() { this->play(true); }
   void set_volume(int volume);
   void mute();
   void unmute();
   void clean_up();
   SimpleAdfPipelineState loop();
-  bool is_announcement() { return is_announcement_; }
-  audio_element_handle_t get_esp_decoder() { return esp_decoder_; }
-  audio_element_handle_t get_i2s_stream_writer() { return i2s_stream_writer_; }
-  SimpleAdfPipelineState get_state() { return state_; }
+  bool is_announcement() { return this->is_announcement_; }
+  audio_element_handle_t get_esp_decoder() { return this->esp_decoder_; }
+  audio_element_handle_t get_i2s_stream_writer() { return this->i2s_stream_writer_; }
+  SimpleAdfPipelineState get_state() { return this->state_; }
 
  protected:
   void pipeline_init_();
@@ -92,9 +92,9 @@ class SimpleAdfMediaPipeline : public i2s_audio::I2SAudioOut {
   int64_t launch_timestamp_{0};
   bool is_initialized_{false};
   bool is_music_info_set_{false};
-  int rate_{44100};
-  int bits_{16};
-  int ch_{2};
+  uint32_t rate_{44100};
+  i2s_bits_per_sample_t bits_{I2S_BITS_PER_SAMPLE_16BIT};
+  uint32_t ch_{2};
 };
 
 }  // namespace esp_adf

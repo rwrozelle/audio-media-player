@@ -50,13 +50,13 @@ std::string MultiRoomAction::to_string() {
 
 void MultiRoomAudio::loop() {
   if (get_mrm() == media_player::MEDIA_PLAYER_MRM_FOLLOWER) {
-    //recv_broadcast_();
+    //this->recv_broadcast_();
   }
 }
 
 void MultiRoomAudio::listen() {
   if (mrm_ == media_player::MEDIA_PLAYER_MRM_OFF) {
-    mrm_command_("mrmlisten");
+    this->mrm_command_("mrmlisten");
     esph_log_d(TAG, "multiRoomAudio_ listen");
     //this->listen_();
   }
@@ -64,7 +64,7 @@ void MultiRoomAudio::listen() {
 
 void MultiRoomAudio::unlisten() {
   if (mrm_ != media_player::MEDIA_PLAYER_MRM_OFF) {
-    mrm_command_("mrmunlisten");
+    this->mrm_command_("mrmunlisten");
     esph_log_d(TAG, "multiRoomAudio_ unlisten");
     //this->unlisten_();
   }
@@ -72,7 +72,7 @@ void MultiRoomAudio::unlisten() {
 
 void MultiRoomAudio::set_url(const std::string url) {
   std::string message = "{\"mrmurl\":\"" + url + "\"}";
-  mrm_command_(message);
+  this->mrm_command_(message);
 }
 
 void MultiRoomAudio::start(int64_t timestamp) {
@@ -82,15 +82,15 @@ void MultiRoomAudio::start(int64_t timestamp) {
   otimestampt << timestamp;
   // send time as a string so that cJSON can parse
   message += ",\"timestamp\":\"" + otimestampt.str()+"\"}";
-  mrm_command_(message);
+  this->mrm_command_(message);
 }
 
 void MultiRoomAudio::stop() {
-  mrm_command_("mrmstop");
+  this->mrm_command_("mrmstop");
 }
 
 void MultiRoomAudio::pause() {
-  mrm_command_("mrmpause");
+  this->mrm_command_("mrmpause");
 }
 
 void MultiRoomAudio::resume(int64_t timestamp) {
@@ -100,13 +100,13 @@ void MultiRoomAudio::resume(int64_t timestamp) {
   otimestampt << timestamp;
   // send time as a string so that cJSON can parse
   message += ",\"timestamp\":\"" + otimestampt.str()+"\"}";
-  mrm_command_(message);
+  this->mrm_command_(message);
 }
 
 void MultiRoomAudio::turn_on() {
   player_on_ = true;
-  if (group_members_.length() > 0 && mrm_ == media_player::MEDIA_PLAYER_MRM_LEADER) {
-    std::string group_members = group_members_ + ",";
+  if (this->group_members_.length() > 0 && this->mrm_ == media_player::MEDIA_PLAYER_MRM_LEADER) {
+    std::string group_members = this->group_members_ + ",";
     char *token = strtok(const_cast<char*>(group_members.c_str()), ",");
     esphome::api::HomeassistantServiceResponse resp;
     resp.service = "media_player.turn_on";
@@ -125,8 +125,8 @@ void MultiRoomAudio::turn_on() {
 
 void MultiRoomAudio::turn_off() {
   player_on_ = false;
-  if (group_members_.length() > 0 && mrm_ == media_player::MEDIA_PLAYER_MRM_LEADER) {
-    std::string group_members = group_members_ + ",";
+  if (this->group_members_.length() > 0 && this->mrm_ == media_player::MEDIA_PLAYER_MRM_LEADER) {
+    std::string group_members = this->group_members_ + ",";
     char *token = strtok(const_cast<char*>(group_members.c_str()), ",");
     esphome::api::HomeassistantServiceResponse resp;
     resp.service = "media_player.turn_off";
@@ -144,8 +144,8 @@ void MultiRoomAudio::turn_off() {
 }
 
 void MultiRoomAudio::volume(float volume) {
-  if (group_members_.length() > 0 && mrm_ == media_player::MEDIA_PLAYER_MRM_LEADER) {
-    std::string group_members = group_members_ + ",";
+  if (this->group_members_.length() > 0 && this->mrm_ == media_player::MEDIA_PLAYER_MRM_LEADER) {
+    std::string group_members = this->group_members_ + ",";
     char *token = strtok(const_cast<char*>(group_members.c_str()), ",");
     esphome::api::HomeassistantServiceResponse resp;
     resp.service = "media_player.volume_set";
@@ -169,8 +169,8 @@ void MultiRoomAudio::volume(float volume) {
 }
 
 void MultiRoomAudio::mute() {
-  if (group_members_.length() > 0 && mrm_ == media_player::MEDIA_PLAYER_MRM_LEADER) {
-    std::string group_members = group_members_ + ",";
+  if (this->group_members_.length() > 0 && this->mrm_ == media_player::MEDIA_PLAYER_MRM_LEADER) {
+    std::string group_members = this->group_members_ + ",";
     char *token = strtok(const_cast<char*>(group_members.c_str()), ",");
     esphome::api::HomeassistantServiceResponse resp;
     resp.service = "media_player.volume_mute";
@@ -194,8 +194,8 @@ void MultiRoomAudio::mute() {
 }
 
 void MultiRoomAudio::unmute() {
-  if (group_members_.length() > 0 && mrm_ == media_player::MEDIA_PLAYER_MRM_LEADER) {
-    std::string group_members = group_members_ + ",";
+  if (this->group_members_.length() > 0 && this->mrm_ == media_player::MEDIA_PLAYER_MRM_LEADER) {
+    std::string group_members = this->group_members_ + ",";
     char *token = strtok(const_cast<char*>(group_members.c_str()), ",");
     esphome::api::HomeassistantServiceResponse resp;
     resp.service = "media_player.volume_mute";
@@ -226,7 +226,7 @@ void MultiRoomAudio::send_position(int64_t timestamp, int64_t position) {
   action.type = "sync_position";
   action.timestamp = timestamp;
   action.data = oss.str();
-  send_broadcast_(&action);
+  this->send_broadcast_(&action);
 }
 */
 int64_t MultiRoomAudio::get_timestamp() {
@@ -236,9 +236,9 @@ int64_t MultiRoomAudio::get_timestamp() {
 }
 
 void MultiRoomAudio::mrm_command_(const std::string command) {
-  if (group_members_.length() > 0 && get_mrm() == media_player::MEDIA_PLAYER_MRM_LEADER) {
+  if (this->group_members_.length() > 0 && this->mrm_ == media_player::MEDIA_PLAYER_MRM_LEADER) {
 
-    std::string group_members = group_members_ + ",";
+    std::string group_members = this->group_members_ + ",";
     char *token = strtok(const_cast<char*>(group_members.c_str()), ",");
     esphome::api::HomeassistantServiceResponse resp;
     resp.service = "media_player.play_media";
@@ -268,30 +268,30 @@ void MultiRoomAudio::mrm_command_(const std::string command) {
 
 /*
 void MultiRoomAudio::listen_() {
-  if (udp_socket_ < 0 && player_on_) {
+  if (this->udp_socket_ < 0 && this->player_on_) {
     for(int i = 1; i <= 100; ++i) {
-      udp_socket_ = create_multicast_ipv4_socket_();
-      if (udp_socket_ >= 0) {
-        esph_log_d(TAG, "Connection open for multicast on %s:%d", multicast_ipv4_addr.c_str(),udp_port);
+      this->udp_socket_ = this->create_multicast_ipv4_socket_();
+      if (this->udp_socket_ >= 0) {
+        esph_log_d(TAG, "Connection open for multicast on %s:%d", this->multicast_ipv4_addr.c_str(),this->udp_port);
         break;
       }
     }
-    if (udp_socket_ < 0) {
+    if (this->udp_socket_ < 0) {
       esph_log_e(TAG, "Unable to open Connection");
     }
   }
-  if (!player_on_) {
-    unlisten_();
+  if (!this->player_on_) {
+    this->unlisten_();
   }
 }
 
 void MultiRoomAudio::unlisten_() {
-  if (udp_socket_ >=0 || !player_on_) {
-    if (udp_socket_ >=0) {
-      shutdown(udp_socket_, 0);
-      close(udp_socket_);
+  if (this->udp_socket_ >=0 || !this->player_on_) {
+    if (this->udp_socket_ >=0) {
+      shutdown(this->udp_socket_, 0);
+      close(this->udp_socket_);
       udp_socket_ = -1;
-      esph_log_d(TAG, "Connection closed for multicast on %s:%d", multicast_ipv4_addr.c_str(),udp_port);
+      esph_log_d(TAG, "Connection closed for multicast on %s:%d", this->multicast_ipv4_addr.c_str(),this->udp_port);
     }
   }
 }
@@ -402,16 +402,16 @@ int MultiRoomAudio::socket_add_ipv4_multicast_group_(int sock, bool assign_sourc
 }
 
 void MultiRoomAudio::send_broadcast_(MultiRoomAction *action) {
-  listen_();
+  this->listen_();
   char addr_name[32] = { 0 };
   int retval = 0;
-  if (udp_socket_ >= 0) {
+  if (this->udp_socket_ >= 0) {
     // send actions to multicast
     std::string message = action->to_string();
 
     int len = message.length();
-    if (len > multicast_buffer_size_) {
-        esph_log_e(TAG, "%d is larger than will be able to be received: %d", len, multicast_buffer_size_);
+    if (len > this->multicast_buffer_size_) {
+        esph_log_e(TAG, "%d is larger than will be able to be received: %d", len, this->multicast_buffer_size_);
         return;
     }
 
@@ -422,30 +422,30 @@ void MultiRoomAudio::send_broadcast_(MultiRoomAction *action) {
     struct addrinfo *res;
     hints.ai_family = AF_INET; // For an IPv4 socket
 
-    retval = getaddrinfo(multicast_ipv4_addr.c_str(), NULL, &hints, &res);
+    retval = getaddrinfo(this->multicast_ipv4_addr.c_str(), NULL, &hints, &res);
     if (retval < 0) {
       esph_log_e(TAG, "getaddrinfo() failed for IPV4 destination address. error: %d", retval);
-      udp_socket_ = retval;
+      this->udp_socket_ = retval;
       return;
     }
     if (res == 0) {
       esph_log_e(TAG, "getaddrinfo() did not return any addresses");
-      udp_socket_ = -1;
+      this->udp_socket_ = -1;
       return;
     }
     ((struct sockaddr_in *)res->ai_addr)->sin_port = htons(udp_port);
     inet_ntoa_r(((struct sockaddr_in *)res->ai_addr)->sin_addr, addr_name, sizeof(addr_name)-1);
-    retval = sendto(udp_socket_, message.c_str(), len, 0, res->ai_addr, res->ai_addrlen);
+    retval = sendto(this->udp_socket_, message.c_str(), len, 0, res->ai_addr, res->ai_addrlen);
     freeaddrinfo(res);
     if (retval < 0) {
       esph_log_e(TAG, "IPV4 sendto failed. errno: %d", errno);
-      udp_socket_ = retval;
+      this->udp_socket_ = retval;
     }
   }
 }
 
 void MultiRoomAudio::recv_broadcast_() {
-  listen_();
+  this->listen_();
   char recvbuf[multicast_buffer_size_] = { 0 };
   char addr_name[32] = { 0 };
   struct timeval tv = {
@@ -456,12 +456,12 @@ void MultiRoomAudio::recv_broadcast_() {
   FD_ZERO(&rfds);
   FD_SET(udp_socket_, &rfds);
 
-  int s = select(udp_socket_ + 1, &rfds, NULL, NULL, &tv);
+  int s = select(this->udp_socket_ + 1, &rfds, NULL, NULL, &tv);
 
   // socket failure
   if (s < 0) {
     esph_log_e(TAG, "Select failed: errno %d", errno);
-    udp_socket_ = s;
+    this->udp_socket_ = s;
     return;
   }
 
@@ -486,8 +486,8 @@ void MultiRoomAudio::recv_broadcast_() {
       std::string message = recvbuf;
       std::string address = addr_name;
       if (message != message_prior_) {
-        process_message_(message, address);
-        message_prior_ = message;
+        this->process_message_(message, address);
+        this->message_prior_ = message;
       }
     }
   }
@@ -501,7 +501,7 @@ void MultiRoomAudio::process_message_(std::string &message, std::string &sender)
     std::string recv_action = cJSON_GetObjectItem(root,"action")->valuestring;
     
     if (recv_action == "sync_position") {
-      if (get_mrm() == media_player::MEDIA_PLAYER_MRM_FOLLOWER) {
+      if (this->mrm_ == media_player::MEDIA_PLAYER_MRM_FOLLOWER) {
         // process this action to speed up or slow down followers output to sync with leader
         std::string timestamp_str = cJSON_GetObjectItem(root,"position_timestamp")->valuestring;
         int64_t timestamp = strtoll(timestamp_str.c_str(), NULL, 10);
@@ -511,7 +511,7 @@ void MultiRoomAudio::process_message_(std::string &message, std::string &sender)
         action.type = recv_action;
         action.data = position_str;
         action.timestamp = timestamp;
-        recv_actions.push(action);
+        this->recv_actions.push(action);
       }
     }
     cJSON_Delete(root);

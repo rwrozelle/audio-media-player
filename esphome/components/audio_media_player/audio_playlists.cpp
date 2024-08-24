@@ -15,31 +15,31 @@ static const char *const TAG = "audio_playlists";
 
 void AudioPlaylists::playlist_add(const std::string& uri, bool toBack, bool shuffle) {
   
-  esph_log_v(TAG, "playlist_add_: %s", uri.c_str());
+  esph_log_v(TAG, "playlist_add_: %s", this->uri.c_str());
 
   unsigned int vid = this->playlist_.size();
 
   if (uri.find("m3u") != std::string::npos) {
-    int pl = parse_m3u_into_playlist_(uri.c_str(), toBack, shuffle);
+    int pl = this->parse_m3u_into_playlist_(uri.c_str(), toBack, shuffle);
   }
   else {
     if (!toBack) {
-      update_playlist_order_(1);
+      this->update_playlist_order_(1);
       vid = 0;
     }
     ADFPlaylistTrack track;
     track.url = uri;
     track.order = 0;
-    playlist_.push_back(track);
+    this->playlist_.push_back(track);
   }
   
-  esph_log_v(TAG, "Number of playlist tracks = %d", playlist_.size());
+  esph_log_v(TAG, "Number of playlist tracks = %d", this->playlist_.size());
 }
 
 void AudioPlaylists::update_playlist_order_(unsigned int start_order) {
   unsigned int vid = this->playlist_.size();
   if (vid > 0) {
-    sort(playlist_.begin(), playlist_.end());
+    sort(this->playlist_.begin(), this->playlist_.end());
     for(unsigned int i = 0; i < vid; i++)
     {
       this->playlist_[i].order = i + start_order;
@@ -174,7 +174,7 @@ int AudioPlaylists::parse_m3u_into_playlist_(const char *url, bool toBack, bool 
           std::string title = "";
           int duration = 0;
           if (toBack) {
-            update_playlist_order_(1000);
+            this->update_playlist_order_(1000);
             vid = 0;
           }
           while (keeplooping) {
@@ -237,7 +237,7 @@ int AudioPlaylists::parse_m3u_into_playlist_(const char *url, bool toBack, bool 
                 track.album = album;
                 track.title = title;
                 track.duration = duration;
-                playlist_.push_back(track);
+                this->playlist_.push_back(track);
                 vid++;
               }
               free(cLine);
@@ -256,15 +256,15 @@ int AudioPlaylists::parse_m3u_into_playlist_(const char *url, bool toBack, bool 
     esp_http_client_cleanup(client);
     
     if (toBack) {
-        update_playlist_order_(0);
+        this->update_playlist_order_(0);
     }
     if (shuffle) {
       auto rng = std::default_random_engine {};
-      std::shuffle(std::begin(playlist_), std::end(playlist_), rng);
+      std::shuffle(std::begin(this->playlist_), std::end(this->playlist_), rng);
       unsigned int vid = this->playlist_.size();
       for(unsigned int i = 0; i < vid; i++)
       {
-        esph_log_v(TAG, "Playlist: %s", playlist_[i].uri.c_str());
+        esph_log_v(TAG, "Playlist: %s", this->playlist_[i].uri.c_str());
         this->playlist_[i].is_played = false;
       }
     }

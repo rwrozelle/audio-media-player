@@ -21,39 +21,39 @@ void AudioMediaPlayer::dump_config() {
 
 void AudioMediaPlayer::setup() {
 
-  state = media_player::MEDIA_PLAYER_STATE_OFF;
-  pipeline_.set_parent(this->parent_);
-  volume = .25;
+  this->state = media_player::MEDIA_PLAYER_STATE_OFF;
+  this->pipeline_.set_parent(this->parent_);
+  this->volume = .25;
 }
 
 void AudioMediaPlayer::publish_state() {
 
-  esph_log_d(TAG, "MP State = %s, MP Prior State = %s", media_player_state_to_string(state), media_player_state_to_string(prior_state));
-  if (state != prior_state || force_publish_) {
-    switch (state) {
+  esph_log_d(TAG, "MP State = %s, MP Prior State = %s", media_player_state_to_string(this->state), media_player_state_to_string(this->prior_state));
+  if (this->state != this->prior_state || this->force_publish_) {
+    switch (this->state) {
       case media_player::MEDIA_PLAYER_STATE_PLAYING:
-        if (duration_ > 0 && timestamp_sec_ > 0) {
-          set_position_(offset_sec_ + (get_timestamp_sec_() - timestamp_sec_));
+        if (this->duration_ > 0 && this->timestamp_sec_ > 0) {
+          this->set_position_(this->offset_sec_ + (this->get_timestamp_sec_() - this->timestamp_sec_));
         }
         else {
-          set_position_(0);
+          this->set_position_(0);
         }
         break;
       case media_player::MEDIA_PLAYER_STATE_PAUSED:
-        if (duration_ > 0 && timestamp_sec_ > 0) {
-          set_position_(offset_sec_);
+        if (this->duration_ > 0 && this->timestamp_sec_ > 0) {
+          this->set_position_(this->offset_sec_);
         }
         else {
-          set_position_(0);
+          this->set_position_(0);
         }
         break;
       default:
         //set_duration_(0);
-        set_position_(0);
-        offset_sec_ = 0;
+        this->set_position_(0);
+        this->offset_sec_ = 0;
         break;
     }
-    esph_log_d(TAG, "Publish State, position: %d, duration: %d",position(),duration());
+    esph_log_d(TAG, "Publish State, position: %d, duration: %d",this->position(),this->duration());
     this->state_callback_.call();
     this->prior_state = this->state;
     this->force_publish_ = false;
@@ -73,29 +73,29 @@ media_player::MediaPlayerTraits AudioMediaPlayer::get_traits() {
 // from Component
 void AudioMediaPlayer::loop() {
   
-    SimpleAdfPipelineState pipeline_state = pipeline_.loop();
-    if (pipeline_state != prior_pipeline_state_) {
-      on_pipeline_state_change(pipeline_state);
-      prior_pipeline_state_ = pipeline_state;
+    SimpleAdfPipelineState pipeline_state = this->pipeline_.loop();
+    if (pipeline_state != this->prior_pipeline_state_) {
+      this->on_pipeline_state_change(pipeline_state);
+      this->prior_pipeline_state_ = pipeline_state;
     }
     
     if (pipeline_state == SimpleAdfPipelineState::PAUSED
-        && ((get_timestamp_sec_() - pause_timestamp_sec_) > pause_interval_sec)) {
+        && ((this->get_timestamp_sec_() - this->pause_timestamp_sec_) > this->pause_interval_sec)) {
       this->play_intent_ = false;
-      stop_();
+      this->stop_();
     }
-    //if (multiRoomAudio_ != nullptr) {
-    //  multiRoomAudio_->loop();
-    //  mrm_process_recv_actions_();
-    //  mrm_process_send_actions_();
+    //if (this->multiRoomAudio_ != nullptr) {
+    //  this->multiRoomAudio_->loop();
+    //  this->mrm_process_recv_actions_();
+    //  this->mrm_process_send_actions_();
     //}
 }
 
 void AudioMediaPlayer::control(const media_player::MediaPlayerCall &call) {
-  esph_log_d(TAG, "control call while state: %s", media_player_state_to_string(state));
+  esph_log_d(TAG, "control call while state: %s", media_player_state_to_string(this->state));
 
-  if (multiRoomAudio_ != nullptr && multiRoomAudio_->get_group_members().length() > 0) {
-    multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_LEADER);
+  if (this->multiRoomAudio_ != nullptr && this->multiRoomAudio_->get_group_members().length() > 0) {
+    this->multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_LEADER);
   }
 
   //Media File is sent (no command)
@@ -104,43 +104,43 @@ void AudioMediaPlayer::control(const media_player::MediaPlayerCall &call) {
     std::string media_url = call.get_media_url().value();
     //special cases for setting mrm commands
     if (media_url == "mrmlisten") {
-      if (multiRoomAudio_ != nullptr) {
-        init_mrm_();
+      if (this->multiRoomAudio_ != nullptr) {
+        this->init_mrm_();
       }
-      multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
+      this->multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
     }
-    else if (multiRoomAudio_ != nullptr && media_url == "mrmunlisten") {
-      multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
-      multiRoomAudio_->unlisten();
-      multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_OFF);
-      multiRoomAudio_ = nullptr;
+    else if (this->multiRoomAudio_ != nullptr && media_url == "mrmunlisten") {
+      this->multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
+      this->multiRoomAudio_->unlisten();
+      this->multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_OFF);
+      this->multiRoomAudio_ = nullptr;
     }
-    else if (multiRoomAudio_ != nullptr && media_url.rfind("{\"mrmstart\"", 0) == 0) {
-      multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
+    else if (this->multiRoomAudio_ != nullptr && media_url.rfind("{\"mrmstart\"", 0) == 0) {
+      this->multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
       cJSON *root = cJSON_Parse(media_url.c_str());
       std::string timestamp_str = cJSON_GetObjectItem(root,"timestamp")->valuestring;
       int64_t timestamp = strtoll(timestamp_str.c_str(), NULL, 10);
       cJSON_Delete(root);
-      pipeline_start_(timestamp);
+      this->pipeline_start_(timestamp);
     }
-    else if (multiRoomAudio_ != nullptr && media_url == "mrmstop") {
-      multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
-      pipeline_stop_();
+    else if (this->multiRoomAudio_ != nullptr && media_url == "mrmstop") {
+      this->multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
+      this->pipeline_stop_();
     }
-    else if (multiRoomAudio_ != nullptr && media_url == "mrmpause") {
-      multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
-      pipeline_pause_();
+    else if (this->multiRoomAudio_ != nullptr && media_url == "mrmpause") {
+      this->multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
+      this->pipeline_pause_();
     }
-    else if (multiRoomAudio_ != nullptr && media_url.rfind("{\"mrmresume\"", 0) == 0) {
-      multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
+    else if (this->multiRoomAudio_ != nullptr && media_url.rfind("{\"mrmresume\"", 0) == 0) {
+      this->multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
       cJSON *root = cJSON_Parse(media_url.c_str());
       std::string timestamp_str = cJSON_GetObjectItem(root,"timestamp")->valuestring;
       int64_t timestamp = strtoll(timestamp_str.c_str(), NULL, 10);
       cJSON_Delete(root);
-      pipeline_resume_(timestamp);
+      this->pipeline_resume_(timestamp);
     }
-    else if (multiRoomAudio_ != nullptr && media_url.rfind("{\"mrmurl\"", 0) == 0) {
-      multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
+    else if (this->multiRoomAudio_ != nullptr && media_url.rfind("{\"mrmurl\"", 0) == 0) {
+      this->multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_FOLLOWER);
       cJSON *root = cJSON_Parse(media_url.c_str());
       std::string mrmurl = cJSON_GetObjectItem(root,"mrmurl")->valuestring;
       cJSON_Delete(root);
@@ -153,26 +153,26 @@ void AudioMediaPlayer::control(const media_player::MediaPlayerCall &call) {
         enqueue = call.get_enqueue().value();
       }
       // announcing
-      announcing_ = false;
+      this->announcing_ = false;
       if (call.get_announcement().has_value()) {
-        announcing_ = call.get_announcement().value();
+        this->announcing_ = call.get_announcement().value();
       }
-      if (announcing_) {
-        this->play_track_id_ = audioPlaylists_.next_playlist_track_id();
+      if (this->announcing_) {
+        this->play_track_id_ = this->audioPlaylists_.next_playlist_track_id();
         // place announcement in the announcements_ queue
         ADFUrlTrack track;
         track.url = call.get_media_url().value();
-        audioPlaylists_.get_announcements()->push_back(track);
+        this->audioPlaylists_.get_announcements()->push_back(track);
         //stop what is currently playing.
         //would need a separate pipeline sharing the i2s to not have to stop the track.
-        pipeline_state_before_announcement_ = state;
-        if (state == media_player::MEDIA_PLAYER_STATE_PLAYING || state == media_player::MEDIA_PLAYER_STATE_PAUSED) {
+        pipeline_state_before_announcement_ = this->state;
+        if (this->state == media_player::MEDIA_PLAYER_STATE_PLAYING || this->state == media_player::MEDIA_PLAYER_STATE_PAUSED) {
           this->play_intent_ = true;
-          stop_();
+          this->stop_();
           return;
         } 
-        else if (state != media_player::MEDIA_PLAYER_STATE_ANNOUNCING) {
-          start_();
+        else if (this->state != media_player::MEDIA_PLAYER_STATE_ANNOUNCING) {
+          this->start_();
         }
       }
       //normal media, use enqueue value to determine what to do
@@ -180,31 +180,31 @@ void AudioMediaPlayer::control(const media_player::MediaPlayerCall &call) {
         if (enqueue == media_player::MEDIA_PLAYER_ENQUEUE_REPLACE || enqueue == media_player::MEDIA_PLAYER_ENQUEUE_PLAY) {
           this->play_track_id_ = -1;
           if (enqueue == media_player::MEDIA_PLAYER_ENQUEUE_REPLACE) {
-            audioPlaylists_.clean_playlist();
+            this->audioPlaylists_.clean_playlist();
           }
-          audioPlaylists_.playlist_add(call.get_media_url().value(), true,shuffle_);
-          set_playlist_track_(audioPlaylists_.get_playlist()->front());
+          this->audioPlaylists_.playlist_add(call.get_media_url().value(), true,shuffle_);
+          this->set_playlist_track_(this->audioPlaylists_.get_playlist()->front());
           this->play_intent_ = true;
-          if (state == media_player::MEDIA_PLAYER_STATE_PLAYING || state == media_player::MEDIA_PLAYER_STATE_PAUSED) {
+          if (this->state == media_player::MEDIA_PLAYER_STATE_PLAYING || this->state == media_player::MEDIA_PLAYER_STATE_PAUSED) {
             this->play_track_id_ = 0;
-            stop_();
+            this->stop_();
             return;
           } else {
-            start_();
+            this->start_();
           }
         }
         else if (enqueue == media_player::MEDIA_PLAYER_ENQUEUE_ADD) {
-          audioPlaylists_.playlist_add(call.get_media_url().value(), true, shuffle_);
+          this->audioPlaylists_.playlist_add(call.get_media_url().value(), true, shuffle_);
         }
         else if (enqueue == media_player::MEDIA_PLAYER_ENQUEUE_NEXT) {
-          audioPlaylists_.playlist_add(call.get_media_url().value(), false,shuffle_);
+          this->audioPlaylists_.playlist_add(call.get_media_url().value(), false,shuffle_);
         }
       }
     } 
   }
   // Volume value is sent (no command)
   if (call.get_volume().has_value()) {
-    set_volume_(call.get_volume().value());
+    this->set_volume_(call.get_volume().value());
   }
   //Command
   if (call.get_command().has_value()) {
@@ -212,35 +212,35 @@ void AudioMediaPlayer::control(const media_player::MediaPlayerCall &call) {
       case media_player::MEDIA_PLAYER_COMMAND_PLAY:
         this->play_intent_ = true;
         this->play_track_id_ = -1;
-        if (state == media_player::MEDIA_PLAYER_STATE_PLAYING) {
-          stop_();
+        if (this->state == media_player::MEDIA_PLAYER_STATE_PLAYING) {
+          this->stop_();
         }
-        if (state == media_player::MEDIA_PLAYER_STATE_PAUSED) {
-          resume_();
+        if (this->state == media_player::MEDIA_PLAYER_STATE_PAUSED) {
+          this->resume_();
         }
-        if (state == media_player::MEDIA_PLAYER_STATE_OFF 
-        || state == media_player::MEDIA_PLAYER_STATE_ON 
-        || state == media_player::MEDIA_PLAYER_STATE_NONE
-        || state == media_player::MEDIA_PLAYER_STATE_IDLE) {
+        if (this->state == media_player::MEDIA_PLAYER_STATE_OFF 
+        || this->state == media_player::MEDIA_PLAYER_STATE_ON 
+        || this->state == media_player::MEDIA_PLAYER_STATE_NONE
+        || this->state == media_player::MEDIA_PLAYER_STATE_IDLE) {
         
-          int id = audioPlaylists_.next_playlist_track_id();
+          int id = this->audioPlaylists_.next_playlist_track_id();
           if (id > -1) {
-            set_playlist_track_((*audioPlaylists_.get_playlist())[id]);
+            this->set_playlist_track_((*this->audioPlaylists_.get_playlist())[id]);
           }
           start_();
         }
         break;
       case media_player::MEDIA_PLAYER_COMMAND_PAUSE:
-        if (state == media_player::MEDIA_PLAYER_STATE_PLAYING) {
-          this->play_track_id_ = audioPlaylists_.next_playlist_track_id();
-          play_intent_ = false;
+        if (this->state == media_player::MEDIA_PLAYER_STATE_PLAYING) {
+          this->play_track_id_ = this->audioPlaylists_.next_playlist_track_id();
+          this->play_intent_ = false;
         }
-        pause_();
+        this->pause_();
         break;
       case media_player::MEDIA_PLAYER_COMMAND_STOP:
-        play_intent_ = false;
-        audioPlaylists_.clean_playlist();
-        pause_();
+        this->play_intent_ = false;
+        this->audioPlaylists_.clean_playlist();
+        this->pause_();
         break;
       case media_player::MEDIA_PLAYER_COMMAND_MUTE:
         this->mute_();
@@ -250,140 +250,142 @@ void AudioMediaPlayer::control(const media_player::MediaPlayerCall &call) {
         break;
       case media_player::MEDIA_PLAYER_COMMAND_VOLUME_UP: {
         float new_volume = this->volume + 0.05f;
-        if (new_volume > 1.0f)
+        if (new_volume > 1.0f) {
           new_volume = 1.0f;
-        set_volume_(new_volume);
+        }
+        this->set_volume_(new_volume);
         break;
       }
       case media_player::MEDIA_PLAYER_COMMAND_VOLUME_DOWN: {
         float new_volume = this->volume - 0.05f;
-        if (new_volume < 0.0f)
+        if (new_volume < 0.0f) {
           new_volume = 0.0f;
-        set_volume_(new_volume);
+        }
+        this->set_volume_(new_volume);
         break;
       }
       case media_player::MEDIA_PLAYER_COMMAND_NEXT_TRACK: {
         if ( this->audioPlaylists_.get_playlist()->size() > 0 ) {
           this->play_intent_ = true;
           this->play_track_id_ = -1;
-          stop_();
+          this->stop_();
         }
         break;
       }
       case media_player::MEDIA_PLAYER_COMMAND_PREVIOUS_TRACK: {
         if ( this->audioPlaylists_.get_playlist()->size() > 0 ) {
           this->play_intent_ = true;
-          this->play_track_id_ = audioPlaylists_.previous_playlist_track_id();
-          stop_();
+          this->play_track_id_ = this->audioPlaylists_.previous_playlist_track_id();
+          this->stop_();
         }
         break;
       }
       case media_player::MEDIA_PLAYER_COMMAND_TOGGLE: {
-        if (state == media_player::MEDIA_PLAYER_STATE_OFF) {
-          state = media_player::MEDIA_PLAYER_STATE_ON;
+        if (this->state == media_player::MEDIA_PLAYER_STATE_OFF) {
+          this->state = media_player::MEDIA_PLAYER_STATE_ON;
           publish_state();
-          if (multiRoomAudio_ != nullptr) {
-            multiRoomAudio_->turn_on();
+          if (this->multiRoomAudio_ != nullptr) {
+            this->multiRoomAudio_->turn_on();
           }
         }
         else {
-          if (state == media_player::MEDIA_PLAYER_STATE_PLAYING 
-          || state == media_player::MEDIA_PLAYER_STATE_PAUSED 
-          || state == media_player::MEDIA_PLAYER_STATE_ANNOUNCING ) {
-            turning_off_ = true;
+          if (this->state == media_player::MEDIA_PLAYER_STATE_PLAYING 
+          || this->state == media_player::MEDIA_PLAYER_STATE_PAUSED 
+          || this->state == media_player::MEDIA_PLAYER_STATE_ANNOUNCING ) {
+            this->turning_off_ = true;
             this->play_intent_ = false;
-            stop_();
+            this->stop_();
           }
           else {
             if (HighFrequencyLoopRequester::is_high_frequency()) {
               esph_log_d(TAG,"Set Loop to run normal cycle");
               this->high_freq_.stop();
             }
-            pipeline_.clean_up();
-            state = media_player::MEDIA_PLAYER_STATE_OFF;
-            publish_state();
-            if (multiRoomAudio_ != nullptr) {
-              multiRoomAudio_->turn_off();
+            this->pipeline_.clean_up();
+            this->state = media_player::MEDIA_PLAYER_STATE_OFF;
+            this->publish_state();
+            if (this->multiRoomAudio_ != nullptr) {
+              this->multiRoomAudio_->turn_off();
             }
           }
         }
         break;
       case media_player::MEDIA_PLAYER_COMMAND_TURN_ON: {
-        if (state == media_player::MEDIA_PLAYER_STATE_OFF) {
-            state = media_player::MEDIA_PLAYER_STATE_ON;
-            publish_state();
-            if (multiRoomAudio_ != nullptr) {
-              multiRoomAudio_->turn_on();
+        if (this->state == media_player::MEDIA_PLAYER_STATE_OFF) {
+            this->state = media_player::MEDIA_PLAYER_STATE_ON;
+            this->publish_state();
+            if (this->multiRoomAudio_ != nullptr) {
+              this->multiRoomAudio_->turn_on();
             }
         }
         break;
       }
       case media_player::MEDIA_PLAYER_COMMAND_TURN_OFF: {
-        if (state != media_player::MEDIA_PLAYER_STATE_OFF) {
-          if (state == media_player::MEDIA_PLAYER_STATE_PLAYING 
-          || state == media_player::MEDIA_PLAYER_STATE_PAUSED 
-          || state == media_player::MEDIA_PLAYER_STATE_ANNOUNCING ) {
-            turning_off_ = true;
+        if (this->state != media_player::MEDIA_PLAYER_STATE_OFF) {
+          if (this->state == media_player::MEDIA_PLAYER_STATE_PLAYING 
+          || this->state == media_player::MEDIA_PLAYER_STATE_PAUSED 
+          || this->state == media_player::MEDIA_PLAYER_STATE_ANNOUNCING ) {
+            this->turning_off_ = true;
             this->play_intent_ = false;
-            stop_();
+            this->stop_();
           }
           else {
             if (HighFrequencyLoopRequester::is_high_frequency()) {
               esph_log_d(TAG,"Set Loop to run normal cycle");
               this->high_freq_.stop();
             }
-            pipeline_.clean_up();
-            state = media_player::MEDIA_PLAYER_STATE_OFF;
-            publish_state();
-            if (multiRoomAudio_ != nullptr) {
-              multiRoomAudio_->turn_off();
+            this->pipeline_.clean_up();
+            this->state = media_player::MEDIA_PLAYER_STATE_OFF;
+            this->publish_state();
+            if (this->multiRoomAudio_ != nullptr) {
+              this->multiRoomAudio_->turn_off();
             }
           }
         }
         break;
       }
       case media_player::MEDIA_PLAYER_COMMAND_CLEAR_PLAYLIST: {
-        audioPlaylists_.clean_playlist();
+        this->audioPlaylists_.clean_playlist();
         break;
       }
       case media_player::MEDIA_PLAYER_COMMAND_SHUFFLE: {
-        set_shuffle_(true);
+        this->set_shuffle_(true);
         break;
       }
       case media_player::MEDIA_PLAYER_COMMAND_UNSHUFFLE: {
-        set_shuffle_(false);
+        this->set_shuffle_(false);
         break;
       }
       case media_player::MEDIA_PLAYER_COMMAND_REPEAT_OFF: {
-        set_repeat_(media_player::MEDIA_PLAYER_REPEAT_OFF);
+        this->set_repeat_(media_player::MEDIA_PLAYER_REPEAT_OFF);
         break;
       }
       case media_player::MEDIA_PLAYER_COMMAND_REPEAT_ONE: {
-        set_repeat_(media_player::MEDIA_PLAYER_REPEAT_ONE);
+        this->set_repeat_(media_player::MEDIA_PLAYER_REPEAT_ONE);
         break;
       }
       case media_player::MEDIA_PLAYER_COMMAND_REPEAT_ALL: {
-        set_repeat_(media_player::MEDIA_PLAYER_REPEAT_ALL);
+        this->set_repeat_(media_player::MEDIA_PLAYER_REPEAT_ALL);
         break;
       }
       case media_player::MEDIA_PLAYER_COMMAND_JOIN: {
         if (call.get_group_members().has_value()) {
           
-          if (multiRoomAudio_ != nullptr) {
-            init_mrm_();
+          if (this->multiRoomAudio_ != nullptr) {
+            this->init_mrm_();
           } 
-          multiRoomAudio_->set_group_members(call.get_group_members().value());
-          multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_LEADER);
-          multiRoomAudio_->listen();
+          this->multiRoomAudio_->set_group_members(call.get_group_members().value());
+          this->multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_LEADER);
+          this->multiRoomAudio_->listen();
         }
         break;
       }
       case media_player::MEDIA_PLAYER_COMMAND_UNJOIN: {
-        multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_LEADER);
-        multiRoomAudio_->unlisten();
-        multiRoomAudio_->get_group_members() = "";
-        multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_OFF);
-        multiRoomAudio_ = nullptr;
+        this->multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_LEADER);
+        this->multiRoomAudio_->unlisten();
+        this->multiRoomAudio_->get_group_members() = "";
+        this->multiRoomAudio_->set_mrm(media_player::MEDIA_PLAYER_MRM_OFF);
+        this->multiRoomAudio_ = nullptr;
         break;
       }
       default:
@@ -410,20 +412,20 @@ void AudioMediaPlayer::on_pipeline_state_change(SimpleAdfPipelineState state) {
         this->state = media_player::MEDIA_PLAYER_STATE_PLAYING;
         timestamp_sec_ = get_timestamp_sec_();
       }
-      publish_state();
+      this->publish_state();
       break;
     case SimpleAdfPipelineState::STOPPING:
       break;
     case SimpleAdfPipelineState::STOPPED:
-      set_artist_("");
-      set_album_("");
-      set_title_("");
-      //set_duration_(0);
-      //set_position_(0);
+      this->set_artist_("");
+      this->set_album_("");
+      this->set_title_("");
+      //this->set_duration_(0);
+      //this->set_position_(0);
       this->state = media_player::MEDIA_PLAYER_STATE_IDLE;
-      publish_state();
-      if (multiRoomAudio_ != nullptr) {
-        multiRoomAudio_->stop();
+      this->publish_state();
+      if (this->multiRoomAudio_ != nullptr) {
+        this->multiRoomAudio_->stop();
       }
       if (this->turning_off_) {
         if (HighFrequencyLoopRequester::is_high_frequency()) {
@@ -432,45 +434,45 @@ void AudioMediaPlayer::on_pipeline_state_change(SimpleAdfPipelineState state) {
         }
         pipeline_.clean_up();
         this->state = media_player::MEDIA_PLAYER_STATE_OFF;
-        publish_state();
-        if (multiRoomAudio_ != nullptr) {
-          multiRoomAudio_->turn_off();
+        this->publish_state();
+        if (this->multiRoomAudio_ != nullptr) {
+          this->multiRoomAudio_->turn_off();
         }
-        turning_off_ = false;
+        this->turning_off_ = false;
       }
       else {
         if (this->play_intent_) {
-          if (!play_next_track_on_announcements_()) {
-            if (!announcing_ || pipeline_state_before_announcement_ == media_player::MEDIA_PLAYER_STATE_PLAYING) {
-              play_next_track_on_playlist_(this->play_track_id_);
+          if (!this->play_next_track_on_announcements_()) {
+            if (!this->announcing_ || this->pipeline_state_before_announcement_ == media_player::MEDIA_PLAYER_STATE_PLAYING) {
+              this->play_next_track_on_playlist_(this->play_track_id_);
               this->play_track_id_ = -1;
             }
             else {
-              play_intent_ = false;
+              this->play_intent_ = false;
             }
-            announcing_ = false;
-            pipeline_state_before_announcement_ = media_player::MEDIA_PLAYER_STATE_NONE;
+            this->announcing_ = false;
+            this->pipeline_state_before_announcement_ = media_player::MEDIA_PLAYER_STATE_NONE;
           }
         }
         if (this->play_intent_) {
-          start_();
+          this->start_();
         }
         else {
           if (HighFrequencyLoopRequester::is_high_frequency()) {
             esph_log_d(TAG,"Set Loop to run normal cycle");
             this->high_freq_.stop();
           }
-          pipeline_.clean_up();
+          this->pipeline_.clean_up();
         }
       }
       break;
     case SimpleAdfPipelineState::PAUSING:
       break;
     case SimpleAdfPipelineState::PAUSED:
-      offset_sec_ = offset_sec_ + (get_timestamp_sec_() - timestamp_sec_);
-      pause_timestamp_sec_ = get_timestamp_sec_();
+      this->offset_sec_ = offset_sec_ + (get_timestamp_sec_() - timestamp_sec_);
+      this->pause_timestamp_sec_ = get_timestamp_sec_();
       this->state = media_player::MEDIA_PLAYER_STATE_PAUSED;
-      publish_state();
+      this->publish_state();
       this->high_freq_.stop();
       break;
     default:
@@ -483,33 +485,33 @@ void AudioMediaPlayer::start_()
   esph_log_d(TAG,"start_()");
   
   int64_t timestamp = 0;
-  if (multiRoomAudio_ != nullptr) {
-    if (multiRoomAudio_->get_mrm() == media_player::MEDIA_PLAYER_MRM_LEADER) {
-      timestamp = multiRoomAudio_->get_timestamp() + mrm_run_interval;
+  if (this->multiRoomAudio_ != nullptr) {
+    if (this->multiRoomAudio_->get_mrm() == media_player::MEDIA_PLAYER_MRM_LEADER) {
+      timestamp = this->multiRoomAudio_->get_timestamp() + mrm_run_interval;
     }
-    multiRoomAudio_->start(timestamp);
+    this->multiRoomAudio_->start(timestamp);
   }
-  pipeline_start_(timestamp);
+  this->pipeline_start_(timestamp);
 }
 
 void AudioMediaPlayer::stop_() {
   esph_log_d(TAG,"stop_()");
-  pipeline_stop_();
-  if (multiRoomAudio_ != nullptr) {
+  this->pipeline_stop_();
+  if (this->multiRoomAudio_ != nullptr) {
     if (turning_off_) {
-      multiRoomAudio_->turn_off();
+      this->multiRoomAudio_->turn_off();
     }
     else {
-      multiRoomAudio_->stop();
+      this->multiRoomAudio_->stop();
     }
   }
 }
 
 void AudioMediaPlayer::pause_() {
   esph_log_d(TAG,"pause_()");
-  pipeline_pause_();
-  if (multiRoomAudio_ != nullptr) {
-    multiRoomAudio_->pause();
+  this->pipeline_pause_();
+  if (this->multiRoomAudio_ != nullptr) {
+    this->multiRoomAudio_->pause();
   }
 }
 
@@ -518,13 +520,13 @@ void AudioMediaPlayer::resume_()
   esph_log_d(TAG,"resume_()");
   
   int64_t timestamp = 0;
-  if (multiRoomAudio_ != nullptr) {
-    if (multiRoomAudio_->get_mrm() == media_player::MEDIA_PLAYER_MRM_LEADER) {
-      timestamp = multiRoomAudio_->get_timestamp() + mrm_run_interval;
+  if (this->multiRoomAudio_ != nullptr) {
+    if (this->multiRoomAudio_->get_mrm() == media_player::MEDIA_PLAYER_MRM_LEADER) {
+      timestamp = this->multiRoomAudio_->get_timestamp() + mrm_run_interval;
     }
-    multiRoomAudio_->resume(timestamp);
+    this->multiRoomAudio_->resume(timestamp);
   }
-  pipeline_resume_(timestamp);
+  this->pipeline_resume_(timestamp);
 }
 
 bool AudioMediaPlayer::is_announcement_() {
@@ -535,145 +537,145 @@ void AudioMediaPlayer::set_volume_(float volume, bool publish) {
   pipeline_.set_volume(round(100 * volume));
   this->volume = volume;
   if (publish) {
-    force_publish_ = true;
-    publish_state();
-    if (multiRoomAudio_ != nullptr) {
-      multiRoomAudio_->volume(volume);
+    this->force_publish_ = true;
+    this->publish_state();
+    if (this->multiRoomAudio_ != nullptr) {
+      this->multiRoomAudio_->volume(volume);
     }
   }
 }
 
 void AudioMediaPlayer::mute_() {
-  pipeline_.mute();
-  muted_ = true;
-  force_publish_ = true;
-  publish_state();
-  if (multiRoomAudio_ != nullptr) {
-    multiRoomAudio_->mute();
+  this->pipeline_.mute();
+  this->muted_ = true;
+  this->force_publish_ = true;
+  this->publish_state();
+  if (this->multiRoomAudio_ != nullptr) {
+    this->multiRoomAudio_->mute();
   }
 }
 
 void AudioMediaPlayer::unmute_() {
-  pipeline_.unmute();
-  muted_ = false;
-  force_publish_ = true;
-  publish_state();
-  if (multiRoomAudio_ != nullptr) {
-    multiRoomAudio_->unmute();
+  this->pipeline_.unmute();
+  this->muted_ = false;
+  this->force_publish_ = true;
+  this->publish_state();
+  if (this->multiRoomAudio_ != nullptr) {
+    this->multiRoomAudio_->unmute();
   }
 }
 
 
 void AudioMediaPlayer::pipeline_start_(int64_t launch_timestamp) {
   
-  if (state == media_player::MEDIA_PLAYER_STATE_OFF 
-  || state == media_player::MEDIA_PLAYER_STATE_ON 
-  || state == media_player::MEDIA_PLAYER_STATE_NONE
-  || state == media_player::MEDIA_PLAYER_STATE_IDLE) {
+  if (this->state == media_player::MEDIA_PLAYER_STATE_OFF 
+  || this->state == media_player::MEDIA_PLAYER_STATE_ON 
+  || this->state == media_player::MEDIA_PLAYER_STATE_NONE
+  || this->state == media_player::MEDIA_PLAYER_STATE_IDLE) {
     esph_log_d(TAG,"pipeline_start_()");
-    if (state == media_player::MEDIA_PLAYER_STATE_OFF) {
-      state = media_player::MEDIA_PLAYER_STATE_ON;
-      publish_state();
+    if (this->state == media_player::MEDIA_PLAYER_STATE_OFF) {
+      this->state = media_player::MEDIA_PLAYER_STATE_ON;
+      this->publish_state();
     }
     if (!HighFrequencyLoopRequester::is_high_frequency()) {
       esph_log_d(TAG,"Set Loop to run at high frequency cycle");
       this->high_freq_.start();
     }
-    pipeline_.set_launch_timestamp(launch_timestamp);
-    pipeline_.play();
+    this->pipeline_.set_launch_timestamp(launch_timestamp);
+    this->pipeline_.play();
   }
 }
 
 void AudioMediaPlayer::pipeline_stop_() {
-  if (state == media_player::MEDIA_PLAYER_STATE_PLAYING || state == media_player::MEDIA_PLAYER_STATE_PAUSED) {
+  if (this->state == media_player::MEDIA_PLAYER_STATE_PLAYING || this->state == media_player::MEDIA_PLAYER_STATE_PAUSED) {
     esph_log_d(TAG,"pipeline_stop_()");
-    pipeline_.stop();
+    this->pipeline_.stop();
   }
 }
 
 void AudioMediaPlayer::pipeline_pause_() {
-  if (state == media_player::MEDIA_PLAYER_STATE_PLAYING) {
+  if (this->state == media_player::MEDIA_PLAYER_STATE_PLAYING) {
     esph_log_d(TAG,"pipeline_pause_()");
-    pipeline_.pause();
+    this->pipeline_.pause();
   }
 }
 
 void AudioMediaPlayer::pipeline_resume_(int64_t launch_timestamp)
 {
-  if (state == media_player::MEDIA_PLAYER_STATE_PAUSED) {
+  if (this->state == media_player::MEDIA_PLAYER_STATE_PAUSED) {
     if (!HighFrequencyLoopRequester::is_high_frequency()) {
       esph_log_d(TAG,"Set Loop to run at high frequency cycle");
       this->high_freq_.start();
     }
     esph_log_d(TAG,"pipeline_resume_()");
-    pipeline_.set_launch_timestamp(launch_timestamp);
-    pipeline_.resume();
+    this->pipeline_.set_launch_timestamp(launch_timestamp);
+    this->pipeline_.resume();
   }
 }
 
 
 void AudioMediaPlayer::set_repeat_(media_player::MediaPlayerRepeatMode repeat) {
   this->repeat_ = repeat;
-  force_publish_ = true;
-  publish_state();
+  this->force_publish_ = true;
+  this->publish_state();
 }
 
 void AudioMediaPlayer::set_shuffle_(bool shuffle) {
   unsigned int vid = this->audioPlaylists_.get_playlist()->size();
   if (vid > 0) {
-    audioPlaylists_.shuffle_playlist(shuffle);
+    this->audioPlaylists_.shuffle_playlist(shuffle);
     this->shuffle_ = shuffle;
-    force_publish_ = true;
-    publish_state();
+    this->force_publish_ = true;
+    this->publish_state();
     this->play_intent_ = true;
     this->play_track_id_ = 0;
-    stop_();
+    this->stop_();
   }
 }
 
 void AudioMediaPlayer::set_playlist_track_(ADFPlaylistTrack track) {
   esph_log_v(TAG, "uri: %s", track.url);
-  set_artist_(track.artist);
-  set_album_(track.album);
+  this->set_artist_(track.artist);
+  this->set_album_(track.album);
   if (track.title == "") {
-    set_title_(track.url);
+    this->set_title_(track.url);
   }
   else {
-    set_title_(track.title);
+    this->set_title_(track.title);
   }
-  set_duration_(track.duration);
-  offset_sec_ = 0;
-  set_position_(0);
+  this->set_duration_(track.duration);
+  this->offset_sec_ = 0;
+  this->set_position_(0);
 
   esph_log_d(TAG, "set_playlist_track: %s: %s: %s duration: %d %s",
-     artist_.c_str(), album_.c_str(), title_.c_str(), duration_, track.url.c_str());
-  pipeline_.set_url(track.url);
-  if (multiRoomAudio_ != nullptr) {
-    multiRoomAudio_->set_url(track.url);
+     this->artist_.c_str(), this->album_.c_str(), this->title_.c_str(), this->duration_, track.url.c_str());
+  this->pipeline_.set_url(track.url);
+  if (this->multiRoomAudio_ != nullptr) {
+    this->multiRoomAudio_->set_url(track.url);
   }
 }
 
 void AudioMediaPlayer::play_next_track_on_playlist_(int track_id) {
 
   unsigned int vid = this->audioPlaylists_.get_playlist()->size();
-  if (audioPlaylists_.get_playlist()->size() > 0) {
-    if (repeat_ != media_player::MEDIA_PLAYER_REPEAT_ONE) {
-      audioPlaylists_.set_playlist_track_as_played(track_id);
+  if (this->audioPlaylists_.get_playlist()->size() > 0) {
+    if (this->repeat_ != media_player::MEDIA_PLAYER_REPEAT_ONE) {
+      this->audioPlaylists_.set_playlist_track_as_played(track_id);
     }
-       int id = audioPlaylists_.next_playlist_track_id();
+       int id = this->audioPlaylists_.next_playlist_track_id();
     if (id > -1) {
-      set_playlist_track_((*audioPlaylists_.get_playlist())[id]);
+      this->set_playlist_track_((*this->audioPlaylists_.get_playlist())[id]);
     }
     else {
-      if (repeat_ == media_player::MEDIA_PLAYER_REPEAT_ALL) {
+      if (this->repeat_ == media_player::MEDIA_PLAYER_REPEAT_ALL) {
         for(unsigned int i = 0; i < vid; i++)
         {
           (*this->audioPlaylists_.get_playlist())[i].is_played = false;
         }
-        set_playlist_track_((*audioPlaylists_.get_playlist())[0]);
+        this->set_playlist_track_((*this->audioPlaylists_.get_playlist())[0]);
       }
       else {
-        audioPlaylists_.clean_playlist();
+        this->audioPlaylists_.clean_playlist();
         this->play_intent_ = false;
       }
     }
@@ -687,16 +689,16 @@ bool AudioMediaPlayer::play_next_track_on_announcements_() {
     for(unsigned int i = 0; i < vid; i++) {
       bool ip = (*this->audioPlaylists_.get_announcements())[i].is_played;
       if (!ip) {
-        pipeline_.set_url((*audioPlaylists_.get_announcements())[i].url, true);
-        (*audioPlaylists_.get_announcements())[i].is_played = true;
+        this->pipeline_.set_url((*this->audioPlaylists_.get_announcements())[i].url, true);
+        (*this->audioPlaylists_.get_announcements())[i].is_played = true;
         retBool = true;
-        if (multiRoomAudio_ != nullptr) {
-          multiRoomAudio_->set_url((*audioPlaylists_.get_announcements())[i].url);
+        if (this->multiRoomAudio_ != nullptr) {
+          this->multiRoomAudio_->set_url((*this->audioPlaylists_.get_announcements())[i].url);
         }
       }
     }
     if (!retBool) {
-      audioPlaylists_.clean_announcements();
+      this->audioPlaylists_.clean_announcements();
     }
   }
   return retBool;
@@ -710,30 +712,30 @@ int32_t AudioMediaPlayer::get_timestamp_sec_() {
 
 /*
 void AudioMediaPlayer::mrm_process_send_actions_() {
-  if (multiRoomAudio_ != nullptr
-        && multiRoomAudio_->get_mrm() == media_player::MEDIA_PLAYER_MRM_LEADER
-        && pipeline_.get_state() == SimpleAdfPipelineState::RUNNING
-        && duration() > 0
-        && ((multiRoomAudio_->get_timestamp() - mrm_position_timestamp_) > (mrm_position_interval_sec_ * 1000000L)))
+  if (this->multiRoomAudio_ != nullptr
+        && this->multiRoomAudio_->get_mrm() == media_player::MEDIA_PLAYER_MRM_LEADER
+        && this->pipeline_.get_state() == SimpleAdfPipelineState::RUNNING
+        && this->duration() > 0
+        && ((this->multiRoomAudio_->get_timestamp() - this->mrm_position_timestamp_) > (this->mrm_position_interval_sec_ * 1000000L)))
   {
     audio_element_info_t info{};
     audio_element_getinfo(pipeline_.get_esp_decoder(), &info);
-    mrm_position_timestamp_ = multiRoomAudio_->get_timestamp();
+    this->mrm_position_timestamp_ = this->multiRoomAudio_->get_timestamp();
     int64_t position_byte = info.byte_pos;
     if (position_byte > 100 * 1024) {
-      esph_log_v(TAG, "multiRoomAudio_ send position");
-      this->multiRoomAudio_->send_position(mrm_position_timestamp_, position_byte);
+      esph_log_v(TAG, "this->multiRoomAudio_ send position");
+      this->multiRoomAudio_->send_position(this->mrm_position_timestamp_, position_byte);
     }
   }
 }
 
 void AudioMediaPlayer::mrm_process_recv_actions_() {  
-  if (multiRoomAudio_ != nullptr && this->multiRoomAudio_->recv_actions.size() > 0) {
+  if (this->multiRoomAudio_ != nullptr && this->multiRoomAudio_->recv_actions.size() > 0) {
     std::string action = this->multiRoomAudio_->recv_actions.front().type;
 
     if (action == "sync_position" 
-      && multiRoomAudio_->get_mrm() == media_player::MEDIA_PLAYER_MRM_FOLLOWER
-      && ((multiRoomAudio_->get_timestamp() - mrm_position_timestamp_) > (mrm_position_interval_sec_ * 1000000L))
+      && this->multiRoomAudio_->get_mrm() == media_player::MEDIA_PLAYER_MRM_FOLLOWER
+      && ((this->multiRoomAudio_->get_timestamp() - this->mrm_position_timestamp_) > (this->mrm_position_interval_sec_ * 1000000L))
       )
     {
       int64_t timestamp = this->multiRoomAudio_->recv_actions.front().timestamp;
@@ -746,20 +748,20 @@ void AudioMediaPlayer::mrm_process_recv_actions_() {
 }
 
 void AudioMediaPlayer::mrm_sync_position_(int64_t timestamp, int64_t position) {
-  if (multiRoomAudio_ != nullptr) {
-    if (multiRoomAudio_->get_mrm() == media_player::MEDIA_PLAYER_MRM_FOLLOWER
-      && pipeline_.get_state() == SimpleAdfPipelineState::RUNNING
-      && state == media_player::MEDIA_PLAYER_STATE_PLAYING
+  if (this->multiRoomAudio_ != nullptr) {
+    if (this->multiRoomAudio_->get_mrm() == media_player::MEDIA_PLAYER_MRM_FOLLOWER
+      && this->pipeline_.get_state() == SimpleAdfPipelineState::RUNNING
+      && this->state == media_player::MEDIA_PLAYER_STATE_PLAYING
       )
     {
       audio_element_info_t info{};
       audio_element_getinfo(pipeline_.get_esp_decoder(), &info);
-      mrm_position_timestamp_ = multiRoomAudio_->get_timestamp();
+      this->mrm_position_timestamp_ = this->multiRoomAudio_->get_timestamp();
       int64_t local_position = info.byte_pos;
       
       if (local_position > 100 * 1024) {
         int32_t bps = (int32_t)(info.sample_rates * info.channels * info.bits / 8);
-        float adj_sec = ((mrm_position_timestamp_ - timestamp) / 1000000.0);
+        float adj_sec = ((this->mrm_position_timestamp_ - timestamp) / 1000000.0);
         int64_t adjusted_position = round((adj_sec * bps) + position);
         int32_t delay_size = (int32_t)(adjusted_position - local_position);
         esph_log_d(TAG,"sync_position: leader: %lld, follower: %lld, diff: %d, adj_sec: %f", adjusted_position, local_position, delay_size, adj_sec);
@@ -767,20 +769,20 @@ void AudioMediaPlayer::mrm_sync_position_(int64_t timestamp, int64_t position) {
           if (delay_size < -.2 * bps) {
             delay_size = -.2 * bps;
           }
-          i2s_stream_sync_delay_(pipeline_.get_i2s_stream_writer(), delay_size);
+          i2s_stream_sync_delay_(this->pipeline_.get_i2s_stream_writer(), delay_size);
            esph_log_d(TAG,"sync_position done, delay_size: %d", delay_size);
-           mrm_position_interval_sec_ = 1;
+           this->mrm_position_interval_sec_ = 1;
         }
         else if (delay_size > .1 * bps) {
           if (delay_size > .2 * bps) {
             delay_size = .2 * bps;
           }
-          i2s_stream_sync_delay_(pipeline_.get_i2s_stream_writer(), delay_size);
+          i2s_stream_sync_delay_(this->pipeline_.get_i2s_stream_writer(), delay_size);
           esph_log_d(TAG,"sync_position done, delay_size: %d", delay_size);
-          mrm_position_interval_sec_ = 1;
+          this->mrm_position_interval_sec_ = 1;
         }
         else {
-          mrm_position_interval_sec_ = 30;
+          this->mrm_position_interval_sec_ = 30;
         }
       }
     }

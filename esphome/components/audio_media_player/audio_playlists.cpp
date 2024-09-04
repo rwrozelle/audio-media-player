@@ -169,6 +169,7 @@ int AudioPlaylists::parse_m3u_into_playlist_(const char *url, bool toBack, bool 
           char *ptr;
           char *buffer = response;
           bool keeplooping = true;
+          std::string playlist = "";
           std::string artist = "";
           std::string album = "";
           std::string title = "";
@@ -215,6 +216,9 @@ int AudioPlaylists::parse_m3u_into_playlist_(const char *url, bool toBack, bool 
                   album = cLine + 8;
                 }
               }
+              else if (strstr(cLine,"#PLAYLIST:") != NULL) {
+                playlist = cLine + 10;
+              }
               else if (strstr(cLine,"#EXTINF:") != NULL) {
                 char *comma_ptr;
                 comma_ptr = strchr(cLine,',');
@@ -233,6 +237,7 @@ int AudioPlaylists::parse_m3u_into_playlist_(const char *url, bool toBack, bool 
                 ADFPlaylistTrack track;
                 track.url = cLine;
                 track.order = vid;
+				track.playlist = playlist;
                 track.artist = artist;
                 track.album = album;
                 track.title = title;

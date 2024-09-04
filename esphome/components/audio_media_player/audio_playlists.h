@@ -18,6 +18,7 @@ class ADFUrlTrack {
 class ADFPlaylistTrack : public ADFUrlTrack {
   public:
     unsigned int order{0};
+    std::string playlist{""};
     std::string artist{""};
     std::string album{""};
     std::string title{""};

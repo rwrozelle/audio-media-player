@@ -398,7 +398,7 @@ void SimpleAdfMediaPipeline::pipeline_init_() {
   };
 #if SOC_I2S_SUPPORTS_DAC
   if (internal_dac_mode_ != I2S_DAC_CHANNEL_DISABLE) {
-    config.mode = (i2s_mode_t) (config.mode | I2S_MODE_DAC_BUILT_IN);
+    i2s_driver_config.mode = (i2s_mode_t) (i2s_driver_config.mode | I2S_MODE_DAC_BUILT_IN);
   }
 #endif
 

@@ -223,8 +223,8 @@ void SimpleAdfMediaPipeline::set_volume(int volume) {
     this->volume_ = volume;
   if (this->state_ == SimpleAdfPipelineState::RUNNING || this->state_ == SimpleAdfPipelineState::STARTING) {
     if (this->use_adf_alc_) {
-      //use -50 to 50
-      int target_volume = volume - 50;
+      //use -64 to 36
+      int target_volume = volume - 64;
       if (i2s_alc_volume_set(this->i2s_stream_writer_, target_volume) != ESP_OK) {
         esph_log_e(TAG, "error setting volume to %d", target_volume);
       }
@@ -235,7 +235,6 @@ void SimpleAdfMediaPipeline::set_volume(int volume) {
 void SimpleAdfMediaPipeline::mute() {
   if (this->state_ == SimpleAdfPipelineState::RUNNING) {
     if (this->use_adf_alc_) {
-      int target_volume = -64;
       if (i2s_alc_volume_set(this->i2s_stream_writer_, -64) != ESP_OK) {
         esph_log_e(TAG, "error seting mute");
       }

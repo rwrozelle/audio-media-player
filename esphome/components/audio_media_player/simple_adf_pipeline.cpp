@@ -245,7 +245,7 @@ void SimpleAdfMediaPipeline::mute() {
 void SimpleAdfMediaPipeline::unmute() {
   if (this->state_ == SimpleAdfPipelineState::RUNNING) {
     if (this->use_adf_alc_) {
-      int target_volume = volume_ - 50;
+      int target_volume = volume_ - 64;
       if (i2s_alc_volume_set(this->i2s_stream_writer_, target_volume) != ESP_OK) {
         esph_log_e(TAG, "error setting unmute to volume to %d", target_volume);
       }

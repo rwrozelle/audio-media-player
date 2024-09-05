@@ -138,7 +138,8 @@ int AudioPlaylists::parse_m3u_into_playlist_(const char *url, bool toBack, bool 
   
     unsigned int vid = this->playlist_.size();
     esp_http_client_config_t config = {
-        .url = url
+        .url = url,
+        .buffer_size_tx = 2 * DEFAULT_HTTP_BUF_SIZE
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
 
@@ -269,7 +270,7 @@ int AudioPlaylists::parse_m3u_into_playlist_(const char *url, bool toBack, bool 
       unsigned int vid = this->playlist_.size();
       for(unsigned int i = 0; i < vid; i++)
       {
-        esph_log_v(TAG, "Playlist: %s", this->playlist_[i].uri.c_str());
+        esph_log_v(TAG, "Playlist: %s", this->playlist_[i].url.c_str());
         this->playlist_[i].is_played = false;
       }
     }

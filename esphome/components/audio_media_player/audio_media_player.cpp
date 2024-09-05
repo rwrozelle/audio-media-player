@@ -634,7 +634,7 @@ void AudioMediaPlayer::set_shuffle_(bool shuffle) {
 }
 
 void AudioMediaPlayer::set_playlist_track_(ADFPlaylistTrack track) {
-  esph_log_v(TAG, "uri: %s", track.url);
+  esph_log_v(TAG, "uri: %s", track.url.c_str());
   if (track.artist == "") {
 	this->set_artist_(track.playlist);
   } else {

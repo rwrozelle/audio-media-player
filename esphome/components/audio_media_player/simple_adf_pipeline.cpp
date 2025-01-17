@@ -384,7 +384,7 @@ void SimpleAdfMediaPipeline::pipeline_init_() {
       .use_apll = false,
       .tx_desc_auto_clear = true,
       .fixed_mclk = I2S_PIN_NO_CHANGE,
-      .mclk_multiple = I2S_MCLK_MULTIPLE_DEFAULT,
+      .mclk_multiple = I2S_MCLK_MULTIPLE_256,
       .bits_per_chan = I2S_BITS_PER_CHAN_DEFAULT,
 #if SOC_I2S_SUPPORTS_TDM
       .chan_mask = I2S_CHANNEL_MONO,
@@ -497,7 +497,7 @@ void SimpleAdfMediaPipeline::pipeline_run_() {
     }
     if (this->state_ == SimpleAdfPipelineState::RESUMING) {
       //audio_pipeline_resume(pipeline_);
-      audio_element_resume(this->i2s_stream_writer_, 0, 2000 / portTICK_RATE_MS);
+      audio_element_resume(this->i2s_stream_writer_, 0, 2000 / portTICK_PERIOD_MS);
       this->set_state_(SimpleAdfPipelineState::RUNNING);
     }
     else {

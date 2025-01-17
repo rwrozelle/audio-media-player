@@ -1,6 +1,7 @@
 
 import os
 import esphome.codegen as cg
+from esphome.components.esp32 import add_idf_component
 from esphome.components import media_player, esp32
 from esphome.components.esp32 import add_idf_component
 import esphome.config_validation as cv
@@ -14,6 +15,10 @@ from esphome.components.i2s_audio import (
     I2SAudioOut,
     CONF_I2S_AUDIO_ID,
     CONF_I2S_DOUT_PIN,
+    CONF_LEFT,
+    CONF_RIGHT,
+    CONF_MONO,
+    CONF_STEREO,
 )
 CONF_USE_ADF_ALC = "adf_alc"
 
@@ -34,12 +39,12 @@ CONF_DAC_TYPE = "dac_type"
 CONF_I2S_COMM_FMT = "i2s_comm_fmt"
 
 INTERNAL_DAC_OPTIONS = {
-    "left": i2s_dac_mode_t.I2S_DAC_CHANNEL_LEFT_EN,
-    "right": i2s_dac_mode_t.I2S_DAC_CHANNEL_RIGHT_EN,
-    "stereo": i2s_dac_mode_t.I2S_DAC_CHANNEL_BOTH_EN,
+    CONF_LEFT: i2s_dac_mode_t.I2S_DAC_CHANNEL_LEFT_EN,
+    CONF_RIGHT: i2s_dac_mode_t.I2S_DAC_CHANNEL_RIGHT_EN,
+    CONF_STEREO: i2s_dac_mode_t.I2S_DAC_CHANNEL_BOTH_EN,
 }
 
-EXTERNAL_DAC_OPTIONS = ["mono", "stereo"]
+EXTERNAL_DAC_OPTIONS = [CONF_MONO, CONF_STEREO]
 
 NO_INTERNAL_DAC_VARIANTS = [esp32.const.VARIANT_ESP32S2]
 
@@ -122,11 +127,11 @@ async def to_code(config):
 
     esp32.add_extra_build_file(
         "esp_adf_patches/idf_v4.4_freertos.patch",
-        "https://github.com/espressif/esp-adf/raw/v2.6/idf_patches/idf_v4.4_freertos.patch",
+        "https://github.com/espressif/esp-adf/raw/v2.6/idf_patches/idf_v5.1_freertos.patch",
     )
 
-    add_idf_component(
-        name="mdns",
+    esp32.add_idf_component(
+        name="esp-adf",
         repo="https://github.com/espressif/esp-adf.git",
         ref="v2.6",
         path="components",
@@ -150,3 +155,4 @@ async def to_code(config):
             "tone_partition",
         ],
     )
+   

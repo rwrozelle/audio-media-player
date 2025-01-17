@@ -178,7 +178,7 @@ static esp_err_t _i2s_open(audio_element_handle_t self)
     }
 
     if (i2s->type == AUDIO_STREAM_WRITER) {
-        audio_element_set_input_timeout(self, 10 / portTICK_RATE_MS);
+        audio_element_set_input_timeout(self, 10 / portTICK_PERIOD_MS);
         ESP_LOGI(TAG, "AUDIO_STREAM_WRITER");
     }
     i2s->is_open = true;

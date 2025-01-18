@@ -1,6 +1,5 @@
 # ESPHome - Audio Media Player
-**Test Version: ESPHome-2024.6.6**
-**Dependencies, I plan on PR'ing these changes before Fall '24
+**Test Version: ESPHome-2024.12.4
 * https://github.com/rwrozelle/core, specifically homeassistant/components/esphome/media_player.py.
 * https://github.com/rwrozelle/esphome, the components api and media_player.
 * https://github.com/rwrozelle/aioesphomeapi
@@ -29,7 +28,7 @@ This external component provides an audio media-player with the following HA Ava
 
 ![image info](./images/media-player.PNG)
 
-Audio Media Component uses [Espressif Audio Development Framework (ADF)](https://github.com/espressif/esp-adf) version 2.6 and only works using the esp-idf platform.
+Audio Media Component uses [Espressif Audio Development Framework (ADF)](https://github.com/espressif/esp-adf) version 2.6 and only works using the esp-idf version: 4.4.8
 
 ## External Component - audio-media-player
 The esp-adf code is based on https://github.com/gnumpi/esphome_audio. Code is simplified to concentrate on above capabilities with the following components, note:  Only tested using this hardware:
@@ -75,6 +74,8 @@ esp32:
   flash_size: 16MB
   framework:
     type: esp-idf
+    version: 4.4.8
+    platform_version: 5.4.0
     sdkconfig_options:
       CONFIG_ESP32_S3_BOX_BOARD: "y"
 

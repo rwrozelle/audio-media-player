@@ -1,5 +1,5 @@
 # ESPHome - Audio Media Player
-**Install Version: ESPHome-2024.12.4
+**Install Version: ESPHome-2024.12.4, Core: 2025.2.0
 * https://github.com/rwrozelle/core, specifically homeassistant/components/esphome/media_player.py.
 * https://github.com/rwrozelle/esphome, the components api and media_player.
 * https://github.com/rwrozelle/aioesphomeapi

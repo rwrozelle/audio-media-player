@@ -1,5 +1,5 @@
 # ESPHome - Audio Media Player
-**Test Version: ESPHome-2024.12.4
+**Install Version: ESPHome-2024.12.4
 * https://github.com/rwrozelle/core, specifically homeassistant/components/esphome/media_player.py.
 * https://github.com/rwrozelle/esphome, the components api and media_player.
 * https://github.com/rwrozelle/aioesphomeapi
@@ -144,6 +144,7 @@ wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
 
+# time component is not needed if not attempting to use join/unjoin
 time:
   - platform: sntp
     id: sntp_time
@@ -156,14 +157,17 @@ time:
 # define the i2s controller and their pins as before
 i2s_audio:
   - id: i2s_out
+    # Modify pins based on physical wiring
     i2s_lrclk_pin: GPIO4
     i2s_bclk_pin: GPIO6
 
 audio_media_player:
     name: "Media Player 1"
     dac_type: external
+    # Modify pin based on physical wiring
     i2s_dout_pin: GPIO5
     mode: stereo
+    #below turns on and off a switch configured in HA, remove if not using.
     on_turn_on:
       then:
         - logger.log: "Turn On Media Player 1"
@@ -180,11 +184,12 @@ audio_media_player:
               entity_id: switch.media_player_1_switch
 ```
 
-## Config Folder Structure
+## Config Folder Structure (Same folder that contains configuration.yaml for HA)
 ```
 config
   aioesphomeapi
   custom_components
+    esphome
   esphome
     components
       api
@@ -260,3 +265,41 @@ sequence:
 mode: single
 description: ""
 ```
+
+# Installation
+This is how I install, there are other approaches:
+
+1. Clone the following repositories.  For example, I've cloned them to C:\github
+```
+* C:\github\aioesphomeapi is a clone of https://github.com/rwrozelle/aioesphomeapi
+* C:\github\audio-media-player is a clone of https://github.com/rwrozelle/audio-media-player
+* C:\github\core is a clone of https://github.com/rwrozelle/core
+* C:\github\esphome is a clone of https://github.com/rwrozelle/esphome
+```
+
+2. Use Samba share (https://github.com/home-assistant/addons/tree/master/samba) to create a mapped drive (Z:) to the Home Assistant __config__ folder
+
+3. Copy C:\github\aioesphomeapi\aioesphomeapi to Z:\
+![image info](./images/aioesphomeapi.PNG)
+
+4. If needed, create Z:\custom_components
+5. Copy C:\github\core\homeassistant\components\esphome to Z:\custom_components
+![image info](./images/external_components_esphome.PNG)
+
+6. Modify Z:\custom_components\esphome\manifest.json and add:
+  ,"version": "1.0.0"
+![image info](./images/esphome_manifest.PNG)
+
+7. If needed, create Z:\esphome\components
+8. Copy C:\github\audio-media-player\esphome\components\audio_media_player to Z:\esphome\components
+9. Copy C:\github\esphome\esphome\components\api to Z:\esphome\components
+10. Copy C:\github\esphome\esphome\components\media_player to Z:\esphome\components
+![image info](./images/esphome_components.PNG)
+11. Restart HA, In the raw log file will be the entry:
+```
+WARNING (SyncWorker_0) [homeassistant.loader] We found a custom integration esphome which has not been tested by Home Assistant. This component might cause stability problems, be sure to disable it if you experience issues with Home Assistant
+```
+This means that HA is using code in Z:\custom_components\esphome, not the code that comes with HA Release.
+
+Build your ESPHome device using the Example Yaml as a guide.
+

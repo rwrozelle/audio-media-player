@@ -15,7 +15,7 @@ static const char *const TAG = "audio_playlists";
 
 void AudioPlaylists::playlist_add(const std::string& uri, bool toBack, bool shuffle) {
   
-  esph_log_v(TAG, "playlist_add_: %s", this->uri.c_str());
+  esph_log_v(TAG, "playlist_add_: %s", uri.c_str());
 
   unsigned int vid = this->playlist_.size();
 
@@ -144,9 +144,12 @@ int AudioPlaylists::parse_m3u_into_playlist_(const char *url, bool toBack, bool 
     esp_http_client_handle_t client = esp_http_client_init(&config);
 
     char *response;
+	
+    esph_log_v(TAG, "open http client");
     esp_err_t err = esp_http_client_open(client,0);
     int rc = 0;
     if (err == ESP_OK) {
+      esph_log_v(TAG, "opened");
       //int cl = esp_http_client_get_content_length(client);
       int cl =  esp_http_client_fetch_headers(client);
       esph_log_v(TAG, "HTTP Status = %d, content_length = %d", esp_http_client_get_status_code(client), cl);

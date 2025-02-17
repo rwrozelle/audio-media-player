@@ -1,6 +1,10 @@
 # ESPHome - Audio Media Player
-**Install Version: ESPHome-2024.12.4, Core: 2025.2.0
-* https://github.com/rwrozelle/core, specifically homeassistant/components/esphome/media_player.py.
+## Install Version: ESPHome-2024.12.4, Core: 2025.2.0
+* https://github.com/rwrozelle/core
+* * /homeassistant/components/esphome - required 
+* * /homeassistant/components/dlna_dms - optional to be able to play albums from a dlna server
+* * /homeassistant/components/media_source - use this if you are using dlna_dms
+
 * https://github.com/rwrozelle/esphome, the components api and media_player.
 * https://github.com/rwrozelle/aioesphomeapi
 
@@ -21,8 +25,8 @@ This external component provides an audio media-player with the following HA Ava
 * shuffle_set
 * repeat_set
 * play_media - can turn an m3u file into a playlist
-** enqueue - add, next, play, replace
-** announce - after announcement is played, the current track is restarted
+* * enqueue - add, next, play, replace
+* * announce - after announcement is played, the current track is restarted
 * join - members of group are will turn off, turn on, set volume, and play the same media as leader. Synchronization is attempted by telling leader and group members to start media at the same time. Uses the Time component in the sntp platform to assume that chips have the same time.
 * unjoin
 
@@ -301,5 +305,14 @@ WARNING (SyncWorker_0) [homeassistant.loader] We found a custom integration esph
 ```
 This means that HA is using code in Z:\custom_components\esphome, not the code that comes with HA Release.
 
-Build your ESPHome device using the Example Yaml as a guide.
+12. Build your ESPHome device using the Example Yaml as a guide.
 
+13. If you want to use a dlna server to play albums or even entire artists, you can:
+* Copy C:\github\core\homeassistant\components\dlna_dms to Z:\custom_components
+* Copy C:\github\core\homeassistant\components\media_source to Z:\custom_components
+* Modify Z:\custom_components\dlna_dms\manifest.json and add:
+  ,"version": "1.0.0"
+* Modify Z:\custom_components\media_source\manifest.json and add:
+  ,"version": "1.0.0"
+
+This functionality creates a playlist file on the fly, so be patient. 

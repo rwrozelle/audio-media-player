@@ -3,7 +3,10 @@
 * https://github.com/rwrozelle/core
 * * /homeassistant/components/esphome - required 
 * * /homeassistant/components/dlna_dms - optional to be able to play albums from a dlna server
-* * /homeassistant/components/media_source - use this if you are using dlna_dms
+* * /homeassistant/components/jellyfin - optional to be able to play albums from a jellyfin server
+* * /homeassistant/components/media_source - use this if you are using dlna_dms and/ jellyfin
+
+The jellyfin integration works better than the dlna_dms integration.
 
 * https://github.com/rwrozelle/esphome, the components api and media_player.
 * https://github.com/rwrozelle/aioesphomeapi
@@ -309,8 +312,11 @@ This means that HA is using code in Z:\custom_components\esphome, not the code t
 
 13. If you want to use a dlna server to play albums or even entire artists, you can:
 * Copy C:\github\core\homeassistant\components\dlna_dms to Z:\custom_components
+* Copy C:\github\core\homeassistant\components\jellyfin to Z:\custom_components
 * Copy C:\github\core\homeassistant\components\media_source to Z:\custom_components
 * Modify Z:\custom_components\dlna_dms\manifest.json and add:
+  ,"version": "1.0.0"
+* Modify Z:\custom_components\jellyfin\manifest.json and add:
   ,"version": "1.0.0"
 * Modify Z:\custom_components\media_source\manifest.json and add:
   ,"version": "1.0.0"

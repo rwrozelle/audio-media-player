@@ -420,6 +420,7 @@ void AudioMediaPlayer::on_pipeline_state_change(SimpleAdfPipelineState state) {
       this->set_artist_("");
       this->set_album_("");
       this->set_title_("");
+	  this->set_thumbnail_url_("");
       //this->set_duration_(0);
       //this->set_position_(0);
       this->state = media_player::MEDIA_PLAYER_STATE_IDLE;
@@ -647,6 +648,7 @@ void AudioMediaPlayer::set_playlist_track_(ADFPlaylistTrack track) {
   else {
     this->set_title_(track.title);
   }
+  this->set_thumbnail_url_(track.thumbnail_url);
   this->set_duration_(track.duration);
   this->offset_sec_ = 0;
   this->set_position_(0);

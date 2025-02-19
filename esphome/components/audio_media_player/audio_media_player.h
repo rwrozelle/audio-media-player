@@ -32,6 +32,7 @@ class AudioMediaPlayer : public Component, public media_player::MediaPlayer, pub
   std::string artist() const { return this->artist_; }
   std::string album() const { return this->album_; }
   std::string title() const { return this->title_; }
+  std::string thumbnail_url() const { return this->thumbnail_url_; }
   int duration() const { return this->duration_; }
   int position() const { return this->position_; }
   
@@ -79,6 +80,7 @@ class AudioMediaPlayer : public Component, public media_player::MediaPlayer, pub
   void set_artist_(const std::string& artist) {artist_ = artist;}
   void set_album_(const std::string& album) {album_ = album;}
   void set_title_(const std::string& title) {title_ = title;}
+  void set_thumbnail_url_(const std::string& thumbnail_url) {thumbnail_url_ = thumbnail_url;}
   void set_duration_(int duration) {duration_ = duration;}
   void set_position_(int position) {position_ = position;}
   
@@ -109,6 +111,7 @@ class AudioMediaPlayer : public Component, public media_player::MediaPlayer, pub
   std::string artist_{""};
   std::string album_{""};
   std::string title_{""};
+  std::string thumbnail_url_{""};
   int duration_{0}; // in seconds
   int position_{0}; // in seconds
   bool play_intent_{false};

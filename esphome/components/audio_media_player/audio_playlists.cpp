@@ -135,12 +135,15 @@ void AudioPlaylists::set_playlist_track_as_played(int track_id)
 
 int AudioPlaylists::parse_m3u_into_playlist_(const char *url, bool toBack, bool shuffle)
 {
-  
+    esph_log_v(TAG, "parse m3u");
     unsigned int vid = this->playlist_.size();
     esp_http_client_config_t config = {
         .url = url,
-        .buffer_size_tx = 2 * DEFAULT_HTTP_BUF_SIZE
+        .timeout_ms = 60000,
+        .buffer_size_tx = 2 * DEFAULT_HTTP_BUF_SIZE,
     };
+	
+    esph_log_v(TAG, "configure http client");
     esp_http_client_handle_t client = esp_http_client_init(&config);
 
     char *response;
@@ -177,6 +180,7 @@ int AudioPlaylists::parse_m3u_into_playlist_(const char *url, bool toBack, bool 
           std::string artist = "";
           std::string album = "";
           std::string title = "";
+		  std::string thumbnail_url = "";
           int duration = 0;
           if (toBack) {
             this->update_playlist_order_(1000);
@@ -212,6 +216,9 @@ int AudioPlaylists::parse_m3u_into_playlist_(const char *url, bool toBack, bool 
               if (strstr(cLine,"#EXTART:") != NULL) {
                 artist = cLine + 8;
               }
+			  else if (strstr(cLine,"#EXTIMG:") != NULL) {
+                thumbnail_url = cLine + 8;
+              }
               else if (strstr(cLine,"#EXTALB:") != NULL) {
                 if (strchr(cLine,'-') != NULL) {
                   album = strchr(cLine,'-') + 1;
@@ -245,6 +252,7 @@ int AudioPlaylists::parse_m3u_into_playlist_(const char *url, bool toBack, bool 
                 track.artist = artist;
                 track.album = album;
                 track.title = title;
+				track.thumbnail_url = thumbnail_url;
                 track.duration = duration;
                 this->playlist_.push_back(track);
                 vid++;

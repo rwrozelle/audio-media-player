@@ -22,6 +22,7 @@ class ADFPlaylistTrack : public ADFUrlTrack {
     std::string artist{""};
     std::string album{""};
     std::string title{""};
+    std::string thumbnail_url{""};
     int duration{0};
     
     // Overloading < operator 

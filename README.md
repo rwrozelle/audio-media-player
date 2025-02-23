@@ -2,11 +2,14 @@
 ## Install Version: ESPHome-2024.12.4, Core: 2025.2.0
 * https://github.com/rwrozelle/core
 * * /homeassistant/components/esphome - required 
-* * /homeassistant/components/dlna_dms - optional to be able to play albums from a dlna server
-* * /homeassistant/components/jellyfin - optional to be able to play albums from a jellyfin server
+* * /homeassistant/components/jellyfin - optional to be able to play artists and albums from a jellyfin server
+* * /homeassistant/components/dlna_dms - optional to be able to play artists and albums from a dlna server, in branch dlna_dms, no enhancements planned.
 * * /homeassistant/components/media_source - use this if you are using dlna_dms and/ jellyfin
 
-The jellyfin integration works better than the dlna_dms integration.
+The Jellyfin integration works better than the dlna_dms integration.
+When you open the Browse Media, you'll notice that at the Artist and Album level, the Play button is available.
+
+Jellyfin is an open source media-server: https://jellyfin.org/
 
 * https://github.com/rwrozelle/esphome, the components api and media_player.
 * https://github.com/rwrozelle/aioesphomeapi
@@ -43,7 +46,7 @@ The esp-adf code is based on https://github.com/gnumpi/esphome_audio. Code is si
 1. ESP32-S3-DevKit1
 2. I2S PCM5102 DAC Decoder
 
-This component is built to solve the following use case:  Be able to play an extensive library of flac and mp3 files available in a local web server using ESPHome and standard HA functionality. I have python code that will generate m3u files from my library and I've made these files visible in Media Sources.
+This component is built to solve the following use case:  Be able to play an extensive library of audo files available in a Jellyfin Server using standard HA Media functionality.
 
 ![image info](./images/media-source.PNG)
 
@@ -197,6 +200,8 @@ config
   aioesphomeapi
   custom_components
     esphome
+	jellyfin
+	media-source
   esphome
     components
       api
@@ -272,6 +277,46 @@ sequence:
 mode: single
 description: ""
 ```
+## Automation Scripts for use with Assist
+These work if you install Jellyfin custom component, assumes there is only 1 media_player available in an area.
+### Play Artist
+```
+alias: Conversation - Play Artist
+description: ""
+triggers:
+  - command:
+      - Play artist {artist}
+    trigger: conversation
+conditions: []
+actions:
+  - action: media_player.play_media
+    metadata: {}
+    data:
+      media_content_id: media-source://jellyfin/?MusicArtist={{ trigger.slots.artist }}
+      media_content_type: music
+    target:
+      area_id: "{{area_id(trigger.device_id) }}"
+mode: single
+```
+### Play Album
+```
+alias: Conversation - Play Album
+description: ""
+triggers:
+  - command:
+      - Play album {album}
+    trigger: conversation
+conditions: []
+actions:
+  - action: media_player.play_media
+    metadata: {}
+    data:
+      media_content_id: media-source://jellyfin/?MusicAlbum={{ trigger.slots.album }}
+      media_content_type: music
+    target:
+      area_id: "{{area_id(trigger.device_id) }}"
+mode: single
+```
 
 # Installation
 This is how I install, there are other approaches:
@@ -310,15 +355,13 @@ This means that HA is using code in Z:\custom_components\esphome, not the code t
 
 12. Build your ESPHome device using the Example Yaml as a guide.
 
-13. If you want to use a dlna server to play albums or even entire artists, you can:
-* Copy C:\github\core\homeassistant\components\dlna_dms to Z:\custom_components
-* Copy C:\github\core\homeassistant\components\jellyfin to Z:\custom_components
+13. If you want to use jellyfin (recommended) or dlna server to play albums or even entire artists, you can:
 * Copy C:\github\core\homeassistant\components\media_source to Z:\custom_components
-* Modify Z:\custom_components\dlna_dms\manifest.json and add:
+* Copy C:\github\core\homeassistant\components\jellyfin to Z:\custom_components
+* Copy C:\github\core\homeassistant\components\dlna_dms to Z:\custom_components
+* Modify Z:\custom_components\media_source\manifest.json and add:
   ,"version": "1.0.0"
 * Modify Z:\custom_components\jellyfin\manifest.json and add:
   ,"version": "1.0.0"
-* Modify Z:\custom_components\media_source\manifest.json and add:
+* Modify Z:\custom_components\dlna_dms\manifest.json and add:
   ,"version": "1.0.0"
-
-This functionality creates a playlist file on the fly, so be patient. 

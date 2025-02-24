@@ -3,7 +3,6 @@
 #ifdef USE_ESP_IDF
 
 #include "esphome/components/media_player/media_player.h"
-#include "esphome/components/i2s_audio/i2s_audio.h"
 #include "esphome/core/component.h"
 #include "esphome/core/gpio.h"
 #include "esphome/core/helpers.h"
@@ -14,7 +13,7 @@
 namespace esphome {
 namespace esp_adf {
 
-class AudioMediaPlayer : public Component, public media_player::MediaPlayer, public i2s_audio::I2SAudioOut {
+class AudioMediaPlayer : public Component, public media_player::MediaPlayer {
 
  public:
   // ESPHome-Component implementations
@@ -37,13 +36,10 @@ class AudioMediaPlayer : public Component, public media_player::MediaPlayer, pub
   int position() const { return this->position_; }
   
   //this
-  void set_dout_pin(uint8_t pin) { this->pipeline_.set_dout_pin(pin); }
-#if SOC_I2S_SUPPORTS_DAC
-  void set_internal_dac_mode(i2s_dac_mode_t mode) { this->pipeline_.set_internal_dac_mode(mode); }
-#endif
-  void set_external_dac_channels(uint8_t channels) { this->pipeline_.set_external_dac_channels(channels); }
-  void set_i2s_comm_fmt_lsb(bool lsb) { this->pipeline_.set_i2s_comm_fmt_lsb(lsb); }
-  void set_use_adf_alc(bool use_alc) { this->pipeline_.set_use_adf_alc(use_alc); }
+  void set_dout_pin(int pin) { this->pipeline_.set_dout_pin(pin); }
+  void set_mclk_pin(int pin) { this->pipeline_.set_mclk_pin(pin); }
+  void set_bclk_pin(int pin) { this->pipeline_.set_bclk_pin(pin); }
+  void set_lrclk_pin(int pin) { this->pipeline_.set_lrclk_pin(pin); }
   
   media_player::MediaPlayerState prior_state{media_player::MEDIA_PLAYER_STATE_NONE};
 

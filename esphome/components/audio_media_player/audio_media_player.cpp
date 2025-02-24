@@ -13,6 +13,7 @@ namespace esp_adf {
 
 static const char *const TAG = "audio_media_player";
 
+
 void AudioMediaPlayer::dump_config() {
 
   esph_log_config(TAG, "AudioMediaPlayer");
@@ -22,7 +23,7 @@ void AudioMediaPlayer::dump_config() {
 void AudioMediaPlayer::setup() {
 
   this->state = media_player::MEDIA_PLAYER_STATE_OFF;
-  this->pipeline_.set_parent(this->parent_);
+  //this->pipeline_.set_parent(this->parent_);
   this->volume = .25;
 }
 

@@ -2,14 +2,13 @@
 
 #ifdef USE_ESP_IDF
 
-#include "driver/i2s.h"
+#include "driver/i2s_std.h"
 #include <http_stream.h>
 #include <esp_decoder.h>
-#include "i2s_stream_2_6_mod.h"
+#include "i2s_stream_mod.h"
 #include <audio_pipeline.h>
 #include <string>
 #include "esphome/components/media_player/media_player.h"
-#include "esphome/components/i2s_audio/i2s_audio.h"
 
 namespace esphome {
 namespace esp_adf {
@@ -19,7 +18,7 @@ enum SimpleAdfPipelineState : uint8_t { STARTING=0, RUNNING, STOPPING, STOPPED, 
 const char *pipeline_state_to_string(SimpleAdfPipelineState state);
 const char *audio_element_status_to_string(audio_element_status_t status);
 
-class SimpleAdfMediaPipeline : public i2s_audio::I2SAudioOut {
+class SimpleAdfMediaPipeline {
 //class SimpleAdfMediaPipeline {
 
  public:
@@ -35,13 +34,10 @@ class SimpleAdfMediaPipeline : public i2s_audio::I2SAudioOut {
   int i2s_stream_task_core{I2S_STREAM_TASK_CORE};
   int i2s_stream_task_prio{I2S_STREAM_TASK_PRIO};
 
-  void set_dout_pin(uint8_t pin) { this->dout_pin_ = pin; }
-#if SOC_I2S_SUPPORTS_DAC
-  void set_internal_dac_mode(i2s_dac_mode_t mode) { this->internal_dac_mode_ = mode; }
-#endif
-  void set_external_dac_channels(uint8_t channels) { this->external_dac_channels_ = channels; }
-  void set_i2s_comm_fmt_lsb(bool lsb) { this->i2s_comm_fmt_lsb_ = lsb; }
-  void set_use_adf_alc(bool use_alc){ this->use_adf_alc_ = use_alc; }
+  void set_dout_pin(int pin) { this->dout_pin_ = pin; }
+  void set_mclk_pin(int pin) { this->mclk_pin_ = pin; }
+  void set_bclk_pin(int pin) { this->bclk_pin_ = pin; }
+  void set_lrclk_pin(int pin) { this->lrclk_pin_ = pin; }
 
   media_player::MediaPlayerState prior_state{media_player::MEDIA_PLAYER_STATE_NONE};
 
@@ -70,13 +66,12 @@ class SimpleAdfMediaPipeline : public i2s_audio::I2SAudioOut {
   void set_state_(SimpleAdfPipelineState state);
   bool uninstall_i2s_driver_();
 
-  uint8_t dout_pin_{0};
-#if SOC_I2S_SUPPORTS_DAC
-  i2s_dac_mode_t internal_dac_mode_{I2S_DAC_CHANNEL_DISABLE};
-#endif
-  uint8_t external_dac_channels_;
-  bool i2s_comm_fmt_lsb_;
-  bool use_adf_alc_{false};
+  int dout_pin_{I2S_GPIO_UNUSED};
+  int mclk_pin_{I2S_GPIO_UNUSED};
+  int bclk_pin_{I2S_GPIO_UNUSED};
+  int lrclk_pin_{I2S_GPIO_UNUSED};
+  
+  bool use_adf_alc_{true};
   int volume_{25}; //between 0 and 100
 
   audio_pipeline_handle_t pipeline_{nullptr};
@@ -93,7 +88,7 @@ class SimpleAdfMediaPipeline : public i2s_audio::I2SAudioOut {
   bool is_initialized_{false};
   bool is_music_info_set_{false};
   uint32_t rate_{44100};
-  i2s_bits_per_sample_t bits_{I2S_BITS_PER_SAMPLE_16BIT};
+  uint32_t bits_{16};
   uint32_t ch_{2};
 };
 

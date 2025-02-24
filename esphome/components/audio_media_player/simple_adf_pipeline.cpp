@@ -70,37 +70,11 @@ const char *audio_element_status_to_string(audio_element_status_t status) {
 }
 
 void SimpleAdfMediaPipeline::dump_config() {
-#if SOC_I2S_SUPPORTS_DAC
-  if (this->internal_dac_mode_ != I2S_DAC_CHANNEL_DISABLE) {
-    switch (this->internal_dac_mode_) {
-      case I2S_DAC_CHANNEL_LEFT_EN:
-        esph_log_config(TAG, "  Internal DAC mode: Left");
-        break;
-      case I2S_DAC_CHANNEL_RIGHT_EN:
-        esph_log_config(TAG, "  Internal DAC mode: Right");
-        break;
-      case I2S_DAC_CHANNEL_BOTH_EN:
-        esph_log_config(TAG, "  Internal DAC mode: Left & Right");
-        break;
-      default:
-        break;
-    }
-  } 
-  else {
-#endif
-    esph_log_config(TAG, "  External DAC channels: %d", this->external_dac_channels_);
-    esph_log_config(TAG, "  I2S DOUT Pin: %d", this->dout_pin_);
-    i2s_pin_config_t pin_config = parent_->get_pin_config();
-    esph_log_config(TAG, "  I2S MCLK Pin: %d", pin_config.mck_io_num);
-    esph_log_config(TAG, "  I2S BCLK Pin: %d", pin_config.bck_io_num);
-    esph_log_config(TAG, "  I2S LRCLK Pin: %d", pin_config.ws_io_num);
-    esph_log_config(TAG, "  I2S Port: %d", parent_->get_port());
-#if SOC_I2S_SUPPORTS_TDM
-    esph_log_config(TAG, "  SOC I2S Supports TDM");
-#endif
-#if SOC_I2S_SUPPORTS_DAC
-  }
-#endif
+	esph_log_config(TAG, "SimpleAdfMediaPipeline");
+	esph_log_config(TAG, "dout: %d",this->dout_pin_);
+	esph_log_config(TAG, "mclk: %d",this->mclk_pin_);
+	esph_log_config(TAG, "bclk: %d",this->bclk_pin_);
+	esph_log_config(TAG, "lrclk: %d",this->lrclk_pin_);  
 }
 
 void SimpleAdfMediaPipeline::set_url(const std::string& url, bool is_announcement) {
@@ -117,6 +91,7 @@ void SimpleAdfMediaPipeline::play(bool resume) {
       this->set_state_(SimpleAdfPipelineState::STARTING);
     }
     if (!this->is_initialized_) {
+/*
       bool isLocked = true;
       for (int i = 0; i < 1000; i++) {
         if (this->parent_->try_lock()) {
@@ -127,7 +102,7 @@ void SimpleAdfMediaPipeline::play(bool resume) {
       if (isLocked) {
         esph_log_e(TAG, "Unable to obtain lock on i2s");
         return;
-      }
+*/
       this->pipeline_init_();
     }
     
@@ -225,6 +200,7 @@ void SimpleAdfMediaPipeline::set_volume(int volume) {
     if (this->use_adf_alc_) {
       //use -64 to 36
       int target_volume = volume - 64;
+        esph_log_v(TAG, "attempt setting volume to %d", target_volume);
       if (i2s_alc_volume_set(this->i2s_stream_writer_, target_volume) != ESP_OK) {
         esph_log_e(TAG, "error setting volume to %d", target_volume);
       }
@@ -235,6 +211,7 @@ void SimpleAdfMediaPipeline::set_volume(int volume) {
 void SimpleAdfMediaPipeline::mute() {
   if (this->state_ == SimpleAdfPipelineState::RUNNING) {
     if (this->use_adf_alc_) {
+        esph_log_v(TAG, "attempt seting mute");
       if (i2s_alc_volume_set(this->i2s_stream_writer_, -64) != ESP_OK) {
         esph_log_e(TAG, "error seting mute");
       }
@@ -246,6 +223,7 @@ void SimpleAdfMediaPipeline::unmute() {
   if (this->state_ == SimpleAdfPipelineState::RUNNING) {
     if (this->use_adf_alc_) {
       int target_volume = volume_ - 64;
+        esph_log_v(TAG, "attempt unmute to %d", target_volume);
       if (i2s_alc_volume_set(this->i2s_stream_writer_, target_volume) != ESP_OK) {
         esph_log_e(TAG, "error setting unmute to volume to %d", target_volume);
       }
@@ -277,7 +255,7 @@ SimpleAdfPipelineState SimpleAdfMediaPipeline::loop() {
           i2s_stream_set_clk(i2s_stream_writer_, music_info.sample_rates, music_info.bits, music_info.channels);
           esph_log_d(TAG,"updated i2s_stream with music_info");
           this->rate_ = music_info.sample_rates;
-          this->bits_ = (i2s_bits_per_sample_t)music_info.bits;
+          this->bits_ = music_info.bits;
           this->ch_ = music_info.channels;
         }
         this->is_music_info_set_ = true;
@@ -333,11 +311,12 @@ SimpleAdfPipelineState SimpleAdfMediaPipeline::loop() {
 }
 
 void SimpleAdfMediaPipeline::pipeline_init_() {
-
+/******************************************************************************/
   audio_pipeline_cfg_t pipeline_cfg = DEFAULT_AUDIO_PIPELINE_CONFIG();
   esph_log_d(TAG, "init pipeline");
   this->pipeline_ = audio_pipeline_init(&pipeline_cfg);
-  
+
+/******************************************************************************/
   http_stream_cfg_t http_cfg = HTTP_STREAM_CFG_DEFAULT();
   http_cfg.out_rb_size = this->http_stream_rb_size;
   http_cfg.task_core = this->http_stream_task_core;
@@ -345,6 +324,7 @@ void SimpleAdfMediaPipeline::pipeline_init_() {
   esph_log_d(TAG, "init http_stream_reader");
   this->http_stream_reader_ = http_stream_init(&http_cfg);
 
+/******************************************************************************/
   audio_decoder_t auto_decode[] = {
         DEFAULT_ESP_AMRNB_DECODER_CONFIG(),
         DEFAULT_ESP_AMRWB_DECODER_CONFIG(),
@@ -358,83 +338,47 @@ void SimpleAdfMediaPipeline::pipeline_init_() {
         DEFAULT_ESP_TS_DECODER_CONFIG(),
   };
   esp_decoder_cfg_t auto_dec_cfg = DEFAULT_ESP_DECODER_CONFIG();
-    auto_dec_cfg.out_rb_size = this->esp_decoder_rb_size;
-    auto_dec_cfg.task_core = this->esp_decoder_task_core;
-    auto_dec_cfg.task_prio = this->esp_decoder_task_prio;
+  auto_dec_cfg.out_rb_size = this->esp_decoder_rb_size;
+  auto_dec_cfg.task_core = this->esp_decoder_task_core;
+  auto_dec_cfg.task_prio = this->esp_decoder_task_prio;
     
   esph_log_d(TAG, "init esp_decoder");
-  
-    esp_decoder_ = esp_decoder_init(&auto_dec_cfg, auto_decode, 10);
-    i2s_channel_fmt_t channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT;
-    if (this->ch_ == 1) {
-      channel_format = I2S_CHANNEL_FMT_ALL_RIGHT;
-    }
-    
-  i2s_comm_format_t comm_fmt = (this->i2s_comm_fmt_lsb_ ? I2S_COMM_FORMAT_STAND_I2S : I2S_COMM_FORMAT_STAND_MSB );  
-  i2s_driver_config_t i2s_driver_config = {
-      .mode = (i2s_mode_t) (I2S_MODE_MASTER | I2S_MODE_TX),
-      .sample_rate = this->rate_,
-      .bits_per_sample = this->bits_,
-      .channel_format = channel_format,
-      .communication_format = comm_fmt,
-      .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
-       //.intr_alloc_flags = ESP_INTR_FLAG_LEVEL2 | ESP_INTR_FLAG_IRAM,
-      .dma_buf_count = 4,
-      .dma_buf_len = 256,
-      .use_apll = false,
-      .tx_desc_auto_clear = true,
-      .fixed_mclk = I2S_PIN_NO_CHANGE,
-      .mclk_multiple = I2S_MCLK_MULTIPLE_256,
-      .bits_per_chan = I2S_BITS_PER_CHAN_DEFAULT,
-#if SOC_I2S_SUPPORTS_TDM
-      .chan_mask = I2S_CHANNEL_MONO,
-      .total_chan = 0,
-      .left_align = false,
-      .big_edin = false,
-      .bit_order_msb = false,
-      .skip_msk = false,
-#endif
-  };
-#if SOC_I2S_SUPPORTS_DAC
-  if (internal_dac_mode_ != I2S_DAC_CHANNEL_DISABLE) {
-    i2s_driver_config.mode = (i2s_mode_t) (i2s_driver_config.mode | I2S_MODE_DAC_BUILT_IN);
-  }
-#endif
+  esp_decoder_ = esp_decoder_init(&auto_dec_cfg, auto_decode, 10);
 
+/******************************************************************************/ 
   i2s_stream_cfg_t i2s_cfg = {
-      .type = AUDIO_STREAM_WRITER,
-      .i2s_config = i2s_driver_config,
-      .i2s_port = parent_->get_port(),
-      .use_alc = use_adf_alc_,
-      .volume = 0,
-      .out_rb_size = this->i2s_stream_rb_size,
-      .task_stack = I2S_STREAM_TASK_STACK,
-      .task_core = this->i2s_stream_task_core,
-      .task_prio = this->i2s_stream_task_prio,
-      .stack_in_ext = false,
-      .multi_out_num = 0,
-      .uninstall_drv = false,
-      .need_expand = false,
-      .expand_src_bits = I2S_BITS_PER_SAMPLE_16BIT,
-      .buffer_len = I2S_STREAM_BUF_SIZE,
+    .type = AUDIO_STREAM_WRITER,
+    .transmit_mode = I2S_COMM_MODE_STD,
+    .chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER),
+    .std_cfg = {
+      .clk_cfg  = I2S_STD_CLK_DEFAULT_CONFIG(this->rate_),
+      .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_ADF_CONFIG((i2s_data_bit_width_t)this->bits_, (i2s_slot_mode_t)this->ch_),
+      .gpio_cfg = {
+		.mclk = (gpio_num_t)this->mclk_pin_,
+        .bclk = (gpio_num_t)this->bclk_pin_,
+        .ws = (gpio_num_t)this->lrclk_pin_,
+        .dout = (gpio_num_t)this->dout_pin_,	
+        .din = I2S_GPIO_UNUSED,
+      },
+    },                      
+    .expand_src_bits = I2S_DATA_BIT_WIDTH_16BIT,
+    .use_alc = use_adf_alc_,
+    .volume = 0,
+    .out_rb_size = this->i2s_stream_rb_size,
+    .task_stack = I2S_STREAM_TASK_STACK,
+    .task_core = this->i2s_stream_task_core,
+    .task_prio = this->i2s_stream_task_prio,
+    .stack_in_ext = false,
+    .multi_out_num = 0,
+    .uninstall_drv = true,
+    .need_expand = false,
+    .buffer_len = I2S_STREAM_BUF_SIZE,
   };
-
-  esph_log_d(TAG, "init i2s_stream_writer");
-  i2s_stream_writer_ = i2s_stream_init(&i2s_cfg);
   
-    esph_log_d(TAG, "install i2s pins");
-#if SOC_I2S_SUPPORTS_DAC
-  if (this->internal_dac_mode_ == I2S_DAC_CHANNEL_DISABLE) {
-#endif
-    i2s_pin_config_t pin_config = parent_->get_pin_config();
-    pin_config.data_out_num = this->dout_pin_;
-    i2s_set_pin(parent_->get_port(), &pin_config);
-#if SOC_I2S_SUPPORTS_DAC
-  } else {
-    i2s_set_dac_mode(this->internal_dac_mode_);
-  }
-#endif
+  esph_log_d(TAG, "init i2s_stream");
+  i2s_stream_writer_ = i2s_stream_init(&i2s_cfg);
 
+/******************************************************************************/
   esph_log_d(TAG, "register audio elements with pipeline: http_stream_reader and esp_decoder");
   audio_pipeline_register(pipeline_, this->http_stream_reader_, "http");
   audio_pipeline_register(pipeline_, this->esp_decoder_,        "decoder");
@@ -443,7 +387,8 @@ void SimpleAdfMediaPipeline::pipeline_init_() {
   esph_log_d(TAG, "Link it together http_stream-->esp_decoder-->i2s_stream-->[codec_chip]");
   const char *link_tag[3] = {"http", "decoder", "i2s"};
   audio_pipeline_link(this->pipeline_, &link_tag[0], 3);
-  
+
+/******************************************************************************/
   audio_event_iface_cfg_t evt_cfg = AUDIO_EVENT_IFACE_DEFAULT_CFG();
   this->evt_ = audio_event_iface_init(&evt_cfg);
   esph_log_d(TAG, "set listener");
@@ -473,12 +418,11 @@ void SimpleAdfMediaPipeline::pipeline_deinit_() {
   this->pipeline_ = nullptr;
   audio_element_deinit(this->http_stream_reader_);
   this->http_stream_reader_ = nullptr;
-  this->uninstall_i2s_driver_();
   audio_element_deinit(this->i2s_stream_writer_);
   this->i2s_stream_writer_ = nullptr;
   audio_element_deinit(this->esp_decoder_);
   this->esp_decoder_ = nullptr;
-  parent_->unlock();
+  //parent_->unlock();
   this->is_initialized_ = false;
 }
 
@@ -512,19 +456,6 @@ void SimpleAdfMediaPipeline::pipeline_run_() {
 void SimpleAdfMediaPipeline::set_state_(SimpleAdfPipelineState state) {
     esph_log_d(TAG, "Updated pipeline state: %s",pipeline_state_to_string(state));
   this->state_ = state;
-}
-
-bool SimpleAdfMediaPipeline::uninstall_i2s_driver_() {
-
-  bool success = false;
-  i2s_zero_dma_buffer(parent_->get_port());
-  esp_err_t err = i2s_driver_uninstall(parent_->get_port());
-  if (err == ESP_OK) {
-    success = true;
-  } else {
-      esph_log_e(TAG, "Couldn't unload i2s_driver");
-  }
-  return success;
 }
 
 }  // namespace esp_adf

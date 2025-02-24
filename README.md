@@ -1,5 +1,6 @@
 # ESPHome - Audio Media Player
-## Install Version: ESPHome-2024.12.4, Core: 2025.2.0
+## Install Version: ESPHome-2024.12.4, Core: 2025.2.0, ADF 2.7
+This is the ADF 2.7 version.  It does not use i2s_audio because it is still using legacy driver while this code is using new i2s driver.
 * https://github.com/rwrozelle/core
 * * /homeassistant/components/esphome - required 
 * * /homeassistant/components/jellyfin - optional to be able to play artists and albums from a jellyfin server
@@ -38,7 +39,7 @@ This external component provides an audio media-player with the following HA Ava
 
 ![image info](./images/media-player.PNG)
 
-Audio Media Component uses [Espressif Audio Development Framework (ADF)](https://github.com/espressif/esp-adf) version 2.6 and only works using the esp-idf version: 4.4.8
+Audio Media Component uses [Espressif Audio Development Framework (ADF)](https://github.com/espressif/esp-adf) version 2.7
 
 ## External Component - audio-media-player
 The esp-adf code is based on https://github.com/gnumpi/esphome_audio. Code is simplified to concentrate on above capabilities with the following components, note:  Only tested using this hardware:
@@ -84,9 +85,8 @@ esp32:
   flash_size: 16MB
   framework:
     type: esp-idf
-    version: 4.4.8
-    platform_version: 5.4.0
     sdkconfig_options:
+      CONFIG_FREERTOS_ENABLE_BACKWARD_COMPATIBILITY: "y"
       CONFIG_ESP32_S3_BOX_BOARD: "y"
 
       # below sdkconfig options are scavenged from internet, appears to help with running some internet radio stations.
@@ -139,7 +139,6 @@ logger:
     simple_adf_pipeline: WARN
     esp-idf: ERROR
     HTTPStreamReader: WARN
-    i2s_audio: WARN
 
 # Enable Home Assistant API
 api:
@@ -163,20 +162,14 @@ time:
      - 0.pool.ntp.org
      - 1.pool.ntp.org
      - 2.pool.ntp.org
-  
-# define the i2s controller and their pins as before
-i2s_audio:
-  - id: i2s_out
-    # Modify pins based on physical wiring
-    i2s_lrclk_pin: GPIO4
-    i2s_bclk_pin: GPIO6
 
+# note: not using i2s_audio. Assumes this is the only i2s app running.  
 audio_media_player:
     name: "Media Player 1"
-    dac_type: external
     # Modify pin based on physical wiring
+    i2s_lrclk_pin: GPIO4
+    i2s_bclk_pin: GPIO6
     i2s_dout_pin: GPIO5
-    mode: stereo
     #below turns on and off a switch configured in HA, remove if not using.
     on_turn_on:
       then:
@@ -239,9 +232,38 @@ http://192.168.1.47:8000/music/mp3/ABBA/ABBA-20th_Century_Masters_The_Millennium
 #EXTINF:294,11.The Winner Takes It All
 http://192.168.1.47:8000/music/mp3/ABBA/ABBA-20th_Century_Masters_The_Millennium_Collection_The_Best_of_ABBA/11.The_Winner_Takes_It_All.mp3
 ```
+or if using the custom Jellyfin integration, the temporary m3u file looks like this:
+```
+#EXTM3U
 
+#EXTART:R.E.M.
+#EXTALB:Reckoning
+#EXTIMG:http://192.168.1.47:8096/Items/7d9c2d4520400b3dc05acf1899457c71/Images/Primary?MaxWidth=500&format=jpg&api_key=407997d8281345749c63c49546f0185c
+#EXTINF:233,Harborcoat
+http://192.168.1.47:8096/Audio/7d9c2d4520400b3dc05acf1899457c71/universal?UserId=12b28c0b77c54edfb412c9d4ea25db25&DeviceId=2c4c24c9f9d25b568776ec3df3b8b604&MaxStreamingBitrate=140000000&api_key=407997d8281345749c63c49546f0185c
+#EXTART:R.E.M.
+#EXTALB:Reckoning
+#EXTIMG:http://192.168.1.47:8096/Items/91408279742bf4983159680b112f9593/Images/Primary?MaxWidth=500&format=jpg&api_key=407997d8281345749c63c49546f0185c
+#EXTINF:258,7 Chinese Bros.
+http://192.168.1.47:8096/Audio/91408279742bf4983159680b112f9593/universal?UserId=12b28c0b77c54edfb412c9d4ea25db25&DeviceId=2c4c24c9f9d25b568776ec3df3b8b604&MaxStreamingBitrate=140000000&api_key=407997d8281345749c63c49546f0185c
+#EXTART:R.E.M.
+#EXTALB:Reckoning
+#EXTIMG:http://192.168.1.47:8096/Items/dd35024e9ef82726fe8b22d88e29a15e/Images/Primary?MaxWidth=500&format=jpg&api_key=407997d8281345749c63c49546f0185c
+#EXTINF:196,So. Central Rain
+http://192.168.1.47:8096/Audio/dd35024e9ef82726fe8b22d88e29a15e/universal?UserId=12b28c0b77c54edfb412c9d4ea25db25&DeviceId=2c4c24c9f9d25b568776ec3df3b8b604&MaxStreamingBitrate=140000000&api_key=407997d8281345749c63c49546f0185c
+#EXTART:R.E.M.
+#EXTALB:Reckoning
+#EXTIMG:http://192.168.1.47:8096/Items/c20cdda7488510148aa41bad320be341/Images/Primary?MaxWidth=500&format=jpg&api_key=407997d8281345749c63c49546f0185c
+#EXTINF:233,Pretty Persuasion
+http://192.168.1.47:8096/Audio/c20cdda7488510148aa41bad320be341/universal?UserId=12b28c0b77c54edfb412c9d4ea25db25&DeviceId=2c4c24c9f9d25b568776ec3df3b8b604&MaxStreamingBitrate=140000000&api_key=407997d8281345749c63c49546f0185c
+#EXTART:R.E.M.
+#EXTALB:Reckoning
+#EXTIMG:http://192.168.1.47:8096/Items/53bceae986171678e7bdba6ced396b03/Images/Primary?MaxWidth=500&format=jpg&api_key=407997d8281345749c63c49546f0185c
+#EXTINF:212,Time After Time (Annelise)
+http://192.168.1.47:8096/Audio/53bceae986171678e7bdba6ced396b03/universal?UserId=12b28c0b77c54edfb412c9d4ea25db25&DeviceId=2c4c24c9f9d25b568776ec3df3b8b604&MaxStreamingBitrate=140000000&api_key=407997d8281345749c63c49546f0185c
+```
 ## Internet Radio m3u file
-Only a small portion of internet radio stations play correctly, here is an example of a working station:
+Only a small portion of internet radio stations play correctly, here is an example of a working station, ADF 2_7 appears to be able to play more radio stations than previously:
 ```
 #EXTM3U
 #EXTINF:0,Jazz Groove - East

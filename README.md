@@ -39,6 +39,9 @@ This external component provides an audio media-player with the following HA Ava
 
 ![image info](./images/media-player.PNG)
 
+
+![image info](./images/overview_with_image.PNG)
+
 Audio Media Component uses [Espressif Audio Development Framework (ADF)](https://github.com/espressif/esp-adf) version 2.7
 
 ## External Component - audio-media-player

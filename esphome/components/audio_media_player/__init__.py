@@ -2,14 +2,17 @@ from esphome import pins
 import os
 import esphome.codegen as cg
 from esphome.components.esp32 import add_idf_component
-from esphome.components import media_player, esp32
+from esphome.components import esp32, media_player
 from esphome.components.esp32 import add_idf_component
 import esphome.config_validation as cv
 
 from esphome import pins
 
-from esphome.const import CONF_ID, CONF_NAME
-
+from esphome.const import (
+    CONF_FORMAT,
+    CONF_ID,
+    CONF_NAME,
+)
 CODEOWNERS = ["@rwrozelle"]
 DEPENDENCIES = ["media_player"]
 AUTO_LOAD = ["media_player"]
@@ -24,7 +27,15 @@ CONF_I2S_DOUT_PIN = "i2s_dout_pin"
 CONF_I2S_MCLK_PIN = "i2s_mclk_pin"
 CONF_I2S_BCLK_PIN = "i2s_bclk_pin"
 CONF_I2S_LRCLK_PIN = "i2s_lrclk_pin"
+CONF_ACCESS_TOKEN = "access_token"
 
+AUDIO_FORMAT = {
+    "MP3": "mp3",
+    "FLAC": "flac",
+    "WAV": "wav",
+    "NONE": "none",
+}
+        
 CONFIG_SCHEMA = cv.All(
     media_player.MEDIA_PLAYER_SCHEMA.extend(
         {
@@ -33,6 +44,8 @@ CONFIG_SCHEMA = cv.All(
             cv.Required(CONF_I2S_LRCLK_PIN): pins.internal_gpio_output_pin_number,
             cv.Optional(CONF_I2S_BCLK_PIN): pins.internal_gpio_output_pin_number,
             cv.Optional(CONF_I2S_MCLK_PIN): pins.internal_gpio_output_pin_number,
+            cv.Optional(CONF_FORMAT, default="FLAC"): cv.enum(AUDIO_FORMAT),
+            cv.Optional(CONF_ACCESS_TOKEN, ""): cv.string,
         }
     ),
     cv.only_with_esp_idf,
@@ -49,6 +62,10 @@ async def to_code(config):
         cg.add(var.set_bclk_pin(config[CONF_I2S_BCLK_PIN]))
     if CONF_I2S_MCLK_PIN in config:
         cg.add(var.set_mclk_pin(config[CONF_I2S_MCLK_PIN]))
+    if CONF_ACCESS_TOKEN in config:
+        cg.add(var.set_access_token(config[CONF_ACCESS_TOKEN]))
+    if CONF_FORMAT in config:
+        cg.add(var.set_format(config[CONF_FORMAT]))
 
     cg.add_define("USE_ESP_ADF_VAD")
     

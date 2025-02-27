@@ -40,6 +40,8 @@ class AudioMediaPlayer : public Component, public media_player::MediaPlayer {
   void set_mclk_pin(int pin) { this->pipeline_.set_mclk_pin(pin); }
   void set_bclk_pin(int pin) { this->pipeline_.set_bclk_pin(pin); }
   void set_lrclk_pin(int pin) { this->pipeline_.set_lrclk_pin(pin); }
+  void set_access_token(const std::string& token) { SimpleAdfMediaPipeline::set_access_token(token); }
+  void set_format(const std::string& format) { this->pipeline_.set_format(format); }
   
   media_player::MediaPlayerState prior_state{media_player::MEDIA_PLAYER_STATE_NONE};
 

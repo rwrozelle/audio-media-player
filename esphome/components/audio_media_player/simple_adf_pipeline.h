@@ -38,6 +38,8 @@ class SimpleAdfMediaPipeline {
   void set_mclk_pin(int pin) { this->mclk_pin_ = pin; }
   void set_bclk_pin(int pin) { this->bclk_pin_ = pin; }
   void set_lrclk_pin(int pin) { this->lrclk_pin_ = pin; }
+  static void set_access_token(const std::string& token) { SimpleAdfMediaPipeline::access_token = token; }
+  void set_format(const std::string& format) { this->format_ = format; }
 
   media_player::MediaPlayerState prior_state{media_player::MEDIA_PLAYER_STATE_NONE};
 
@@ -57,6 +59,8 @@ class SimpleAdfMediaPipeline {
   audio_element_handle_t get_esp_decoder() { return this->esp_decoder_; }
   audio_element_handle_t get_i2s_stream_writer() { return this->i2s_stream_writer_; }
   SimpleAdfPipelineState get_state() { return this->state_; }
+  
+  static std::string access_token;
 
  protected:
   void pipeline_init_();
@@ -65,6 +69,7 @@ class SimpleAdfMediaPipeline {
   void pipeline_run_();
   void set_state_(SimpleAdfPipelineState state);
   bool uninstall_i2s_driver_();
+  std::string url_encode(const std::string& input);
 
   int dout_pin_{I2S_GPIO_UNUSED};
   int mclk_pin_{I2S_GPIO_UNUSED};
@@ -90,6 +95,8 @@ class SimpleAdfMediaPipeline {
   uint32_t rate_{44100};
   uint32_t bits_{16};
   uint32_t ch_{2};
+  std::string format_{"flac"};
+  std::string ffmpeg_server_{"http://homeassistant.local:8123"};
 };
 
 }  // namespace esp_adf

@@ -3,6 +3,8 @@
 #ifdef USE_ESP_IDF
 
 #include "esphome/core/log.h"
+#include "esphome/core/application.h"
+#include "esp_http_client.h"
 
 namespace esphome {
 namespace esp_adf {
@@ -69,18 +71,55 @@ const char *audio_element_status_to_string(audio_element_status_t status) {
   }
 }
 
+static esp_err_t http_stream_event_handle_(http_stream_event_msg_t *msg)
+{
+  esp_http_client_handle_t http = (esp_http_client_handle_t)msg->http_client;
+  
+  if (msg->event_id == HTTP_STREAM_PRE_REQUEST) {
+    // set header
+    esph_log_d("simple_adf_pipeline", "HTTP client HTTP_STREAM_PRE_REQUEST, set bearer token");
+	
+	if (SimpleAdfMediaPipeline::access_token.length() > 0) {
+		std::string value = "Bearer " + SimpleAdfMediaPipeline::access_token;
+		esp_http_client_set_header(http, "Authorization", value.c_str());
+	}
+	
+    return ESP_OK;
+  }
+  return ESP_OK;
+}
+
+std::string SimpleAdfMediaPipeline::access_token = "";
+
 void SimpleAdfMediaPipeline::dump_config() {
-	esph_log_config(TAG, "SimpleAdfMediaPipeline");
-	esph_log_config(TAG, "dout: %d",this->dout_pin_);
-	esph_log_config(TAG, "mclk: %d",this->mclk_pin_);
-	esph_log_config(TAG, "bclk: %d",this->bclk_pin_);
-	esph_log_config(TAG, "lrclk: %d",this->lrclk_pin_);  
+  esph_log_config(TAG, "SimpleAdfMediaPipeline");
+  esph_log_config(TAG, "dout: %d",this->dout_pin_);
+  esph_log_config(TAG, "mclk: %d",this->mclk_pin_);
+  esph_log_config(TAG, "bclk: %d",this->bclk_pin_);
+  esph_log_config(TAG, "lrclk: %d",this->lrclk_pin_);  
 }
 
 void SimpleAdfMediaPipeline::set_url(const std::string& url, bool is_announcement) {
-  this->url_ = url;
-}
 
+  if (SimpleAdfMediaPipeline::access_token.length() > 0 && this->format_ != "none") {
+      std::hash<std::string> hasher;
+      size_t hashValue = hasher(url);
+      
+      std::string encoded_url = this->url_encode(url);
+	  std::string wd2 = "";
+	  if (this->format_ != "mp3") {
+		  wd2 = "&width=2";
+	  }
+      std::string proxy_url = this->ffmpeg_server_ + "/api/esphome/ffmpeg_proxy_with_conversion_info/" \
+	  + App.get_name() + "/" + std::to_string(hashValue) + "." + this->format_ \
+      + "?rate=" + std::to_string(this->rate_) + "&channels=" + std::to_string(this->ch_) + wd2 + "&media=" + encoded_url;
+      esph_log_d(TAG,"using ffmpeg proxy");
+      this->url_ = proxy_url;
+  }
+  else {
+    this->url_ = url;
+  }
+}
 void SimpleAdfMediaPipeline::play(bool resume) {
   esph_log_d(TAG, "Called play with pipeline state: %s",pipeline_state_to_string(this->state_));
   if (this->url_.length() > 0 && ((!resume && this->state_ == SimpleAdfPipelineState::STOPPED) || (resume && this->state_ == SimpleAdfPipelineState::PAUSED))) {
@@ -189,13 +228,13 @@ void SimpleAdfMediaPipeline::clean_up() {
 
 void SimpleAdfMediaPipeline::set_volume(int volume) {
 
-    //input volume is 0 to 100
-    if (volume > 100)
-      volume = 100;
-    else if (volume < 0)
-      volume = 0;
+  //input volume is 0 to 100
+  if (volume > 100)
+    volume = 100;
+  else if (volume < 0)
+    volume = 0;
 
-    this->volume_ = volume;
+  this->volume_ = volume;
   if (this->state_ == SimpleAdfPipelineState::RUNNING || this->state_ == SimpleAdfPipelineState::STARTING) {
     if (this->use_adf_alc_) {
       //use -64 to 36
@@ -240,26 +279,25 @@ SimpleAdfPipelineState SimpleAdfMediaPipeline::loop() {
     audio_event_iface_msg_t msg;
     esp_err_t ret = audio_event_iface_listen(this->evt_, &msg, 0);
     if (ret == ESP_OK) {
-      
-      if (this->is_music_info_set_ == false
+        if (this->is_music_info_set_ == false
         && msg.source_type == AUDIO_ELEMENT_TYPE_ELEMENT
         && msg.source == (void *) this->esp_decoder_
         && msg.cmd == AEL_MSG_CMD_REPORT_MUSIC_INFO) {
-        audio_element_info_t music_info = {0};
-        audio_element_getinfo(this->esp_decoder_, &music_info);
+          audio_element_info_t music_info = {0};
+          audio_element_getinfo(this->esp_decoder_, &music_info);
 
-        esph_log_d(TAG, "[ decoder ] Receive music info, sample_rates=%d, bits=%d, ch=%d",
-                music_info.sample_rates, music_info.bits, music_info.channels);
+          esph_log_d(TAG, "[ decoder ] Receive music info, sample_rates=%d, bits=%d, ch=%d",
+            music_info.sample_rates, music_info.bits, music_info.channels);
 
-        if (this->rate_ != music_info.sample_rates || this->bits_ != music_info.bits || this->ch_ != music_info.channels) {
-          i2s_stream_set_clk(i2s_stream_writer_, music_info.sample_rates, music_info.bits, music_info.channels);
-          esph_log_d(TAG,"updated i2s_stream with music_info");
-          this->rate_ = music_info.sample_rates;
-          this->bits_ = music_info.bits;
-          this->ch_ = music_info.channels;
+          if (this->rate_ != music_info.sample_rates || this->bits_ != music_info.bits || this->ch_ != music_info.channels) {
+            i2s_stream_set_clk(i2s_stream_writer_, music_info.sample_rates, music_info.bits, music_info.channels);
+            esph_log_d(TAG,"updated i2s_stream with music_info");
+            this->rate_ = music_info.sample_rates;
+            this->bits_ = music_info.bits;
+            this->ch_ = music_info.channels;
+          }
+          this->is_music_info_set_ = true;
         }
-        this->is_music_info_set_ = true;
-      }
             
       if (msg.source_type == AUDIO_ELEMENT_TYPE_ELEMENT && msg.cmd == AEL_MSG_CMD_REPORT_STATUS) {
         audio_element_status_t status;
@@ -321,6 +359,7 @@ void SimpleAdfMediaPipeline::pipeline_init_() {
   http_cfg.out_rb_size = this->http_stream_rb_size;
   http_cfg.task_core = this->http_stream_task_core;
   http_cfg.task_prio = this->http_stream_task_prio;
+  http_cfg.event_handle = http_stream_event_handle_;
   esph_log_d(TAG, "init http_stream_reader");
   this->http_stream_reader_ = http_stream_init(&http_cfg);
 
@@ -354,10 +393,10 @@ void SimpleAdfMediaPipeline::pipeline_init_() {
       .clk_cfg  = I2S_STD_CLK_DEFAULT_CONFIG(this->rate_),
       .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_ADF_CONFIG((i2s_data_bit_width_t)this->bits_, (i2s_slot_mode_t)this->ch_),
       .gpio_cfg = {
-		.mclk = (gpio_num_t)this->mclk_pin_,
+        .mclk = (gpio_num_t)this->mclk_pin_,
         .bclk = (gpio_num_t)this->bclk_pin_,
         .ws = (gpio_num_t)this->lrclk_pin_,
-        .dout = (gpio_num_t)this->dout_pin_,	
+        .dout = (gpio_num_t)this->dout_pin_,
         .din = I2S_GPIO_UNUSED,
       },
     },                      
@@ -454,8 +493,24 @@ void SimpleAdfMediaPipeline::pipeline_run_() {
 }
 
 void SimpleAdfMediaPipeline::set_state_(SimpleAdfPipelineState state) {
-    esph_log_d(TAG, "Updated pipeline state: %s",pipeline_state_to_string(state));
+  esph_log_d(TAG, "Updated pipeline state: %s",pipeline_state_to_string(state));
   this->state_ = state;
+}
+
+std::string SimpleAdfMediaPipeline::url_encode(const std::string& input) {
+  std::string result;
+  for (char c : input) {
+    if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+      result += c;
+    } else if (c == ' ') {
+      result += "%20";
+    } else {
+      char hex[4];
+      sprintf(hex, "%%%02X", (int)c);
+      result += hex;
+    }
+  }
+  return result;
 }
 
 }  // namespace esp_adf

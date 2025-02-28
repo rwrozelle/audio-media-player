@@ -12,6 +12,7 @@ from esphome.const import (
     CONF_FORMAT,
     CONF_ID,
     CONF_NAME,
+    CONF_SAMPLE_RATE,
 )
 CODEOWNERS = ["@rwrozelle"]
 DEPENDENCIES = ["media_player"]
@@ -28,6 +29,7 @@ CONF_I2S_MCLK_PIN = "i2s_mclk_pin"
 CONF_I2S_BCLK_PIN = "i2s_bclk_pin"
 CONF_I2S_LRCLK_PIN = "i2s_lrclk_pin"
 CONF_ACCESS_TOKEN = "access_token"
+CONF_FFMPEG_SERVER = "ffmpeg_server"
 
 AUDIO_FORMAT = {
     "MP3": "mp3",
@@ -44,8 +46,10 @@ CONFIG_SCHEMA = cv.All(
             cv.Required(CONF_I2S_LRCLK_PIN): pins.internal_gpio_output_pin_number,
             cv.Optional(CONF_I2S_BCLK_PIN): pins.internal_gpio_output_pin_number,
             cv.Optional(CONF_I2S_MCLK_PIN): pins.internal_gpio_output_pin_number,
-            cv.Optional(CONF_FORMAT, default="FLAC"): cv.enum(AUDIO_FORMAT),
             cv.Optional(CONF_ACCESS_TOKEN, ""): cv.string,
+            cv.Optional(CONF_FFMPEG_SERVER, default="http://homeassistant.local:8123"): cv.string,
+            cv.Optional(CONF_FORMAT, default="FLAC"): cv.enum(AUDIO_FORMAT),
+            cv.Optional(CONF_SAMPLE_RATE): cv.int_range(min=8000),
         }
     ),
     cv.only_with_esp_idf,
@@ -64,8 +68,12 @@ async def to_code(config):
         cg.add(var.set_mclk_pin(config[CONF_I2S_MCLK_PIN]))
     if CONF_ACCESS_TOKEN in config:
         cg.add(var.set_access_token(config[CONF_ACCESS_TOKEN]))
+    if CONF_FFMPEG_SERVER in config:
+        cg.add(var.set_ffmpeg_server(config[CONF_FFMPEG_SERVER]))
     if CONF_FORMAT in config:
         cg.add(var.set_format(config[CONF_FORMAT]))
+    if CONF_SAMPLE_RATE in config:
+        cg.add(var.set_rate(config[CONF_SAMPLE_RATE]))
 
     cg.add_define("USE_ESP_ADF_VAD")
     

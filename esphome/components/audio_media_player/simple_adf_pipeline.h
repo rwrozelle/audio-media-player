@@ -39,7 +39,9 @@ class SimpleAdfMediaPipeline {
   void set_bclk_pin(int pin) { this->bclk_pin_ = pin; }
   void set_lrclk_pin(int pin) { this->lrclk_pin_ = pin; }
   static void set_access_token(const std::string& token) { SimpleAdfMediaPipeline::access_token = token; }
+  void set_ffmpeg_server(const std::string& ffmpeg_server) { this->ffmpeg_server_ = ffmpeg_server; }
   void set_format(const std::string& format) { this->format_ = format; }
+  void set_rate(int rate) { this->rate_ = rate; }
 
   media_player::MediaPlayerState prior_state{media_player::MEDIA_PLAYER_STATE_NONE};
 

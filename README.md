@@ -4,10 +4,8 @@ This is the ADF 2.7 version.  It does not use i2s_audio because it is still usin
 * https://github.com/rwrozelle/core
 * * /homeassistant/components/esphome - required 
 * * /homeassistant/components/jellyfin - optional to be able to play artists and albums from a jellyfin server
-* * /homeassistant/components/dlna_dms - optional to be able to play artists and albums from a dlna server, in branch dlna_dms, no enhancements planned.
 * * /homeassistant/components/media_source - use this if you are using dlna_dms and/ jellyfin
 
-The Jellyfin integration works better than the dlna_dms integration.
 When you open the Browse Media, you'll notice that at the Artist and Album level, the Play button is available.
 
 Jellyfin is an open source media-server: https://jellyfin.org/
@@ -36,6 +34,20 @@ This external component provides an audio media-player with the following HA Ava
 * * announce - after announcement is played, the current track is restarted
 * join - members of group are will turn off, turn on, set volume, and play the same media as leader. Synchronization is attempted by telling leader and group members to start media at the same time. Uses the Time component in the sntp platform to assume that chips have the same time.
 * unjoin
+
+It also can optionally transcode using the ffmpeg server available as part of the ESPHome integration.
+see the new attributes:
+```
+    # long lived bearer token, stored in esphome/secrets.yaml used to contact ffmpeg server for transcoding
+    # if not provided, transcoding does not occur.
+    access_token: !secret access_token 
+    # ffmpeg server for transcoding, defaults to "http://homeassistant.local:8123" if not input.
+    #ffmpeg_server:http://homeassistant.local:8123
+    # transcode target format: MP3, FLAC, WAV, or NONE, if NONE the transcoding does not occur.
+    format: MP3
+    # sample rate for transcoding, defaults to 44100
+    #sample_rate: 48000
+```
 
 ![image info](./images/media-player.PNG)
 
@@ -68,6 +80,7 @@ The code uses esp_decoder and is configured for the following:
 * DEFAULT_ESP_TS_DECODER_CONFIG(),
 
 I've only used it with flac and mp3 files. Flac files play correct "most" of the time, a little chattering every now and then. I've written a Python script to use ffmpeg to convert flac files to mp3(320Kb) and found the sound comparible with less to no chattering.  I'm not an audio-file, I just built this to be able to reuse old stereo equipment that I own and learn about esphome.
+Note on chattering:  This may have more to do with my LAN than something going on in the chip.
 
 ## Example Yaml
 ```
@@ -169,6 +182,15 @@ time:
 # note: not using i2s_audio. Assumes this is the only i2s app running.  
 audio_media_player:
     name: "Media Player 1"
+    # long lived bearer token, stored in esphome/secrets.yaml used to contact ffmpeg server for transcoding
+    # if not provided, transcoding does not occur.
+    access_token: !secret access_token 
+    # ffmpeg server for transcoding, defaults to "http://homeassistant.local:8123" if not input.
+    #ffmpeg_server:http://homeassistant.local:8123
+    # transcode target format: MP3, FLAC, WAV, or NONE, if NONE the transcoding does not occur.
+    format: MP3
+    # sample rate for transcoding, defaults to 44100
+    #sample_rate: 48000
     # Modify pin based on physical wiring
     i2s_lrclk_pin: GPIO4
     i2s_bclk_pin: GPIO6
@@ -267,6 +289,7 @@ http://192.168.1.47:8096/Audio/53bceae986171678e7bdba6ced396b03/universal?UserId
 ```
 ## Internet Radio m3u file
 Only a small portion of internet radio stations play correctly, here is an example of a working station, ADF 2_7 appears to be able to play more radio stations than previously:
+Using the transcoding to MP3 appears to really help with Radio stations.
 ```
 #EXTM3U
 #EXTINF:0,Jazz Groove - East
@@ -380,13 +403,10 @@ This means that HA is using code in Z:\custom_components\esphome, not the code t
 
 12. Build your ESPHome device using the Example Yaml as a guide.
 
-13. If you want to use jellyfin (recommended) or dlna server to play albums or even entire artists, you can:
+13. If you want to use jellyfin to play albums or even entire artists, you can:
 * Copy C:\github\core\homeassistant\components\media_source to Z:\custom_components
 * Copy C:\github\core\homeassistant\components\jellyfin to Z:\custom_components
-* Copy C:\github\core\homeassistant\components\dlna_dms to Z:\custom_components
 * Modify Z:\custom_components\media_source\manifest.json and add:
   ,"version": "1.0.0"
 * Modify Z:\custom_components\jellyfin\manifest.json and add:
-  ,"version": "1.0.0"
-* Modify Z:\custom_components\dlna_dms\manifest.json and add:
   ,"version": "1.0.0"

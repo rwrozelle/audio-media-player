@@ -22,7 +22,7 @@ class SimpleAdfMediaPipeline {
 //class SimpleAdfMediaPipeline {
 
  public:
-  int http_stream_rb_size{HTTP_STREAM_RINGBUFFER_SIZE};
+  int http_stream_rb_size{50 * HTTP_STREAM_RINGBUFFER_SIZE};
   int http_stream_task_core{HTTP_STREAM_TASK_CORE};
   int http_stream_task_prio{HTTP_STREAM_TASK_PRIO};
   
@@ -42,8 +42,11 @@ class SimpleAdfMediaPipeline {
   void set_ffmpeg_server(const std::string& ffmpeg_server) { this->ffmpeg_server_ = ffmpeg_server; }
   void set_format(const std::string& format) { this->format_ = format; }
   void set_rate(int rate) { this->rate_ = rate; }
+  void set_http_stream_rb_size(int rb_size) {this ->http_stream_rb_size_ = rb_size; }
+  void set_esp_decoder_rb_size(int rb_size) {this ->esp_decoder_rb_size_ = rb_size; }
+  void set_i2s_stream_rb_size(int rb_size) {this ->i2s_stream_rb_size_ = rb_size; }
 
-  media_player::MediaPlayerState prior_state{media_player::MEDIA_PLAYER_STATE_NONE};
+  //media_player::MediaPlayerState prior_state{media_player::MEDIA_PLAYER_STATE_NONE};
 
   void dump_config();
   void set_url(const std::string& url, bool is_announcement = false);
@@ -64,15 +67,27 @@ class SimpleAdfMediaPipeline {
   
   static std::string access_token;
 
- protected:
+ protected:  
   void pipeline_init_();
   void pipeline_deinit_();
   int64_t get_timestamp_();
   void pipeline_run_();
   void set_state_(SimpleAdfPipelineState state);
   bool uninstall_i2s_driver_();
-  std::string url_encode(const std::string& input);
+  std::string url_encode_(const std::string& input);
 
+  int http_stream_rb_size_{50 * HTTP_STREAM_RINGBUFFER_SIZE};
+  int http_stream_task_core_{HTTP_STREAM_TASK_CORE};
+  int http_stream_task_prio_{HTTP_STREAM_TASK_PRIO};
+  
+  int esp_decoder_rb_size_{ESP_DECODER_RINGBUFFER_SIZE};
+  int esp_decoder_task_core_{ESP_DECODER_TASK_CORE};
+  int esp_decoder_task_prio_{ESP_DECODER_TASK_PRIO};
+  
+  int i2s_stream_rb_size_{I2S_STREAM_RINGBUFFER_SIZE};
+  int i2s_stream_task_core_{I2S_STREAM_TASK_CORE};
+  int i2s_stream_task_prio_{I2S_STREAM_TASK_PRIO};
+  
   int dout_pin_{I2S_GPIO_UNUSED};
   int mclk_pin_{I2S_GPIO_UNUSED};
   int bclk_pin_{I2S_GPIO_UNUSED};

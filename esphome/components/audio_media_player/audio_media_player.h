@@ -44,6 +44,9 @@ class AudioMediaPlayer : public Component, public media_player::MediaPlayer {
   void set_ffmpeg_server(const std::string& ffmpeg_server) { this->pipeline_.set_ffmpeg_server(ffmpeg_server); }
   void set_format(const std::string& format) { this->pipeline_.set_format(format); }
   void set_rate(int rate) { this->pipeline_.set_rate(rate); }
+  void set_http_stream_rb_size(int rb_size) {this->pipeline_.set_http_stream_rb_size(rb_size); }
+  void set_esp_decoder_rb_size(int rb_size) {this->pipeline_.set_esp_decoder_rb_size(rb_size); }
+  void set_i2s_stream_rb_size(int rb_size) {this->pipeline_.set_i2s_stream_rb_size(rb_size); }
   
   media_player::MediaPlayerState prior_state{media_player::MEDIA_PLAYER_STATE_NONE};
 

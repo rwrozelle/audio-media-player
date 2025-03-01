@@ -96,7 +96,15 @@ void SimpleAdfMediaPipeline::dump_config() {
   esph_log_config(TAG, "dout: %d",this->dout_pin_);
   esph_log_config(TAG, "mclk: %d",this->mclk_pin_);
   esph_log_config(TAG, "bclk: %d",this->bclk_pin_);
-  esph_log_config(TAG, "lrclk: %d",this->lrclk_pin_);  
+  esph_log_config(TAG, "lrclk: %d",this->lrclk_pin_);
+  if (SimpleAdfMediaPipeline::access_token.length() > 0 && this->format_ != "none") {
+    esph_log_config(TAG, "transcode server: %s",this->ffmpeg_server_.c_str());
+    esph_log_config(TAG, "transcode target format: %s",this->format_.c_str());
+    esph_log_config(TAG, "transcode target rate: %d",this->rate_);
+  }
+  esph_log_config(TAG, "http stream rb size: %d",this->http_stream_rb_size_); 
+  esph_log_config(TAG, "esp decoder rb size: %d",this->esp_decoder_rb_size_); 
+  esph_log_config(TAG, "i2s stream rb size: %d",this->i2s_stream_rb_size);    
 }
 
 void SimpleAdfMediaPipeline::set_url(const std::string& url, bool is_announcement) {
@@ -105,7 +113,7 @@ void SimpleAdfMediaPipeline::set_url(const std::string& url, bool is_announcemen
       std::hash<std::string> hasher;
       size_t hashValue = hasher(url);
       
-      std::string encoded_url = this->url_encode(url);
+      std::string encoded_url = this->url_encode_(url);
 	  std::string wd2 = "";
 	  if (this->format_ != "mp3") {
 		  wd2 = "&width=2";
@@ -356,30 +364,30 @@ void SimpleAdfMediaPipeline::pipeline_init_() {
 
 /******************************************************************************/
   http_stream_cfg_t http_cfg = HTTP_STREAM_CFG_DEFAULT();
-  http_cfg.out_rb_size = this->http_stream_rb_size;
-  http_cfg.task_core = this->http_stream_task_core;
-  http_cfg.task_prio = this->http_stream_task_prio;
+  http_cfg.out_rb_size = this->http_stream_rb_size_;
+  http_cfg.task_core = this->http_stream_task_core_;
+  http_cfg.task_prio = this->http_stream_task_prio_;
   http_cfg.event_handle = http_stream_event_handle_;
   esph_log_d(TAG, "init http_stream_reader");
   this->http_stream_reader_ = http_stream_init(&http_cfg);
 
 /******************************************************************************/
   audio_decoder_t auto_decode[] = {
-        DEFAULT_ESP_AMRNB_DECODER_CONFIG(),
-        DEFAULT_ESP_AMRWB_DECODER_CONFIG(),
+        //DEFAULT_ESP_AMRNB_DECODER_CONFIG(),
+        //DEFAULT_ESP_AMRWB_DECODER_CONFIG(),
         DEFAULT_ESP_FLAC_DECODER_CONFIG(),
-        DEFAULT_ESP_OGG_DECODER_CONFIG(),
-        DEFAULT_ESP_OPUS_DECODER_CONFIG(),
+        //DEFAULT_ESP_OGG_DECODER_CONFIG(),
+        //DEFAULT_ESP_OPUS_DECODER_CONFIG(),
         DEFAULT_ESP_MP3_DECODER_CONFIG(),
         DEFAULT_ESP_WAV_DECODER_CONFIG(),
-        DEFAULT_ESP_AAC_DECODER_CONFIG(),
-        DEFAULT_ESP_M4A_DECODER_CONFIG(),
-        DEFAULT_ESP_TS_DECODER_CONFIG(),
+        //DEFAULT_ESP_AAC_DECODER_CONFIG(),
+        //DEFAULT_ESP_M4A_DECODER_CONFIG(),
+        //DEFAULT_ESP_TS_DECODER_CONFIG(),
   };
   esp_decoder_cfg_t auto_dec_cfg = DEFAULT_ESP_DECODER_CONFIG();
-  auto_dec_cfg.out_rb_size = this->esp_decoder_rb_size;
-  auto_dec_cfg.task_core = this->esp_decoder_task_core;
-  auto_dec_cfg.task_prio = this->esp_decoder_task_prio;
+  auto_dec_cfg.out_rb_size = this->esp_decoder_rb_size_;
+  auto_dec_cfg.task_core = this->esp_decoder_task_core_;
+  auto_dec_cfg.task_prio = this->esp_decoder_task_prio_;
     
   esph_log_d(TAG, "init esp_decoder");
   esp_decoder_ = esp_decoder_init(&auto_dec_cfg, auto_decode, 10);
@@ -403,10 +411,10 @@ void SimpleAdfMediaPipeline::pipeline_init_() {
     .expand_src_bits = I2S_DATA_BIT_WIDTH_16BIT,
     .use_alc = use_adf_alc_,
     .volume = 0,
-    .out_rb_size = this->i2s_stream_rb_size,
+    .out_rb_size = this->i2s_stream_rb_size_,
     .task_stack = I2S_STREAM_TASK_STACK,
-    .task_core = this->i2s_stream_task_core,
-    .task_prio = this->i2s_stream_task_prio,
+    .task_core = this->i2s_stream_task_core_,
+    .task_prio = this->i2s_stream_task_prio_,
     .stack_in_ext = false,
     .multi_out_num = 0,
     .uninstall_drv = true,
@@ -497,7 +505,7 @@ void SimpleAdfMediaPipeline::set_state_(SimpleAdfPipelineState state) {
   this->state_ = state;
 }
 
-std::string SimpleAdfMediaPipeline::url_encode(const std::string& input) {
+std::string SimpleAdfMediaPipeline::url_encode_(const std::string& input) {
   std::string result;
   for (char c : input) {
     if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {

@@ -6,7 +6,7 @@ This is the ADF 2.7 version.  It does not use i2s_audio because it is still usin
 * * /homeassistant/components/jellyfin - optional to be able to play artists and albums from a jellyfin server
 * * /homeassistant/components/media_source - use this if you are using dlna_dms and/ jellyfin
 
-When you open the Browse Media, you'll notice that at the Artist and Album level, the Play button is available.
+If you install Jellyfin custom component, when you open the Browse Media on Jellyfin, you'll notice that at the Artist and Album level, the Play button is available.
 
 Jellyfin is an open source media-server: https://jellyfin.org/
 
@@ -40,13 +40,13 @@ see the new attributes:
 ```
     # long lived bearer token, stored in esphome/secrets.yaml used to contact ffmpeg server for transcoding
     # if not provided, transcoding does not occur.
-    access_token: !secret access_token 
+    transcode_access_token: !secret access_token 
     # ffmpeg server for transcoding, defaults to "http://homeassistant.local:8123" if not input.
-    #ffmpeg_server:http://homeassistant.local:8123
+    #transcode_server: http://homeassistant.local:8123
     # transcode target format: MP3, FLAC, WAV, or NONE, if NONE the transcoding does not occur.
-    format: MP3
+    #transcode_format: FLAC
     # sample rate for transcoding, defaults to 44100
-    #sample_rate: 48000
+    transcode_sample_rate: 48000
 ```
 
 ![image info](./images/media-player.PNG)
@@ -68,16 +68,9 @@ This component is built to solve the following use case:  Be able to play an ext
 
 The code uses esp_decoder and is configured for the following:
 
-* DEFAULT_ESP_AMRNB_DECODER_CONFIG(),
-* DEFAULT_ESP_AMRWB_DECODER_CONFIG(),
 * DEFAULT_ESP_FLAC_DECODER_CONFIG(),
-* DEFAULT_ESP_OGG_DECODER_CONFIG(),
-* DEFAULT_ESP_OPUS_DECODER_CONFIG(),
 * DEFAULT_ESP_MP3_DECODER_CONFIG(),
 * DEFAULT_ESP_WAV_DECODER_CONFIG(),
-* DEFAULT_ESP_AAC_DECODER_CONFIG(),
-* DEFAULT_ESP_M4A_DECODER_CONFIG(),
-* DEFAULT_ESP_TS_DECODER_CONFIG(),
 
 I've only used it with flac and mp3 files. Flac files play correct "most" of the time, a little chattering every now and then. I've written a Python script to use ffmpeg to convert flac files to mp3(320Kb) and found the sound comparible with less to no chattering.  I'm not an audio-file, I just built this to be able to reuse old stereo equipment that I own and learn about esphome.
 Note on chattering:  This may have more to do with my LAN than something going on in the chip.
@@ -105,43 +98,39 @@ esp32:
       CONFIG_FREERTOS_ENABLE_BACKWARD_COMPATIBILITY: "y"
       CONFIG_ESP32_S3_BOX_BOARD: "y"
 
-      # below sdkconfig options are scavenged from internet, appears to help with running some internet radio stations.
-      #https://github.com/espressif/esp-adf/issues/297
-      
       CONFIG_ESP32_DEFAULT_CPU_FREQ_240: "y"
       CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ: "240"
 
+     #tx is transmission, rx is read
       #Wi-Fi
-      CONFIG_ESP32_WIFI_STATIC_RX_BUFFER_NUM: "16"
-      CONFIG_ESP32_WIFI_DYNAMIC_RX_BUFFER_NUM: "512"
-      CONFIG_ESP32_WIFI_STATIC_TX_BUFFER: "y"
-      CONFIG_ESP32_WIFI_TX_BUFFER_TYPE: "0"
-      CONFIG_ESP32_WIFI_STATIC_TX_BUFFER_NUM: "8"
-      CONFIG_ESP32_WIFI_CACHE_TX_BUFFER_NUM: "32"
-      CONFIG_ESP32_WIFI_CSI_ENABLED: ""
-      CONFIG_ESP32_WIFI_AMPDU_TX_ENABLED: "y"
-      CONFIG_ESP32_WIFI_TX_BA_WIN: "16"
-      CONFIG_ESP32_WIFI_AMPDU_RX_ENABLED: "y"
-      CONFIG_ESP32_WIFI_RX_BA_WIN: "32"
-
+      #If PSRAM is enabled, "Static" should be selected to guarantee enough WiFi TX buffers
+      CONFIG_ESP_WIFI_STATIC_TX_BUFFER: "y"
+      CONFIG_ESP_WIFI_TX_BUFFER_TYPE: "0"
+      #default is 16 if CONFIG_ESP_WIFI_STATIC_TX_BUFFER
+      CONFIG_ESP_WIFI_STATIC_TX_BUFFER_NUM: "8"
+      #default is 0, caches the uplayer packets
+      CONFIG_ESP_WIFI_CACHE_TX_BUFFER_NUM: "32"
+      #default is 6
+      #should not be larger than double of the CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM
+      #should not be larger than CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM
+      CONFIG_ESP_WIFI_RX_BA_WIN: "16"
+      #default 10, If ESP_WIFI_AMPDU_RX_ENABLED is enabled, this value is recommended to set equal or bigger than ESP_WIFI_RX_BA_WIN
+      CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM: "32"
+      #default 32, If a dynamic RX buffer limit is set, it should be at least the number of static RX buffers
+      #0 to 1024 if CONFIG_LWIP_WND_SCALE
+      CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM: "512"
+      
       #LWIP/TCP
-      CONFIG_TCPIP_RECVMBOX_SIZE: "512"
-      CONFIG_LWIP_MAX_ACTIVE_TCP: "16"
-      CONFIG_LWIP_MAX_LISTENING_TCP: "16"
-      CONFIG_TCP_MAXRTX: "12"
-      CONFIG_TCP_SYNMAXRTX: "6"
-      CONFIG_TCP_MSS: "1436"
-      CONFIG_TCP_MSL: "60000"
-      CONFIG_TCP_SND_BUF_DEFAULT: "65535"
-      CONFIG_TCP_WND_DEFAULT: "512000"
-      CONFIG_TCP_RECVMBOX_SIZE: "512"
-      CONFIG_TCP_QUEUE_OOSEQ: "y"
-      CONFIG_ESP_TCP_KEEP_CONNECTION_WHEN_IP_CHANGES: ""
-      CONFIG_TCP_OVERSIZE_MSS: "y"
-      CONFIG_TCP_OVERSIZE_QUARTER_MSS: ""
-      CONFIG_TCP_OVERSIZE_DISABLE: ""
       CONFIG_LWIP_WND_SCALE: "y"
-      CONFIG_TCP_RCV_SCALE: "3"
+      #default is 5760, max is 2440 to 1024000 if CONFIG_LWIP_WND_SCALE
+      CONFIG_LWIP_TCP_WND_DEFAULT: "512000"
+      #can't find a recommendation
+      CONFIG_LWIP_TCP_RCV_SCALE: "3"
+      #default 32, The value should be bigger than UDP/TCP mail box size.
+      CONFIG_LWIP_TCPIP_RECVMBOX_SIZE: "512"
+      #The recommended value is: LWIP_TCP_WND_DEFAULT/TCP_MSS + 2
+      #default is 6, range is 0 to 1024 if CONFIG_LWIP_WND_SCALE
+      CONFIG_LWIP_TCP_RECVMBOX_SIZE: "360"
 
 psram:
  mode: octal
@@ -184,13 +173,19 @@ audio_media_player:
     name: "Media Player 1"
     # long lived bearer token, stored in esphome/secrets.yaml used to contact ffmpeg server for transcoding
     # if not provided, transcoding does not occur.
-    access_token: !secret access_token 
+    transcode_access_token: !secret access_token 
     # ffmpeg server for transcoding, defaults to "http://homeassistant.local:8123" if not input.
-    #ffmpeg_server:http://homeassistant.local:8123
+    #transcode_server: http://homeassistant.local:8123
     # transcode target format: MP3, FLAC, WAV, or NONE, if NONE the transcoding does not occur.
-    format: MP3
+    #transcode_format: FLAC
     # sample rate for transcoding, defaults to 44100
-    #sample_rate: 48000
+    #transcode_sample_rate: 48000
+    # defaults to 50 * 20 * 1024 = 1024000
+    #http_stream_rb_size: 1024000
+    # defaults to 10 * 1024 = 10240
+    #esp_decoder_rb_size: 10240
+    # defaults to 8 * 1024 = 8192
+    #i2s_stream_rb_size: 8192
     # Modify pin based on physical wiring
     i2s_lrclk_pin: GPIO4
     i2s_bclk_pin: GPIO6

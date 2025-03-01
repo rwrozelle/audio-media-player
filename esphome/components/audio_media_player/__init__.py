@@ -28,8 +28,14 @@ CONF_I2S_DOUT_PIN = "i2s_dout_pin"
 CONF_I2S_MCLK_PIN = "i2s_mclk_pin"
 CONF_I2S_BCLK_PIN = "i2s_bclk_pin"
 CONF_I2S_LRCLK_PIN = "i2s_lrclk_pin"
-CONF_ACCESS_TOKEN = "access_token"
-CONF_FFMPEG_SERVER = "ffmpeg_server"
+CONF_TRANSCODE_ACCESS_TOKEN = "transcode_access_token"
+CONF_TRANSCODE_SERVER = "transcode_server"
+CONF_TRANSCODE_FORMAT = "transcode_format"
+CONF_TRANSCODE_SAMPLE_RATE = "transcode_sample_rate"
+
+CONF_HTTP_STREAM_RB_SIZE = "http_stream_rb_size"
+CONF_ESP_DECODER_RB_SIZE = "esp_decoder_rb_size"
+CONF_I2S_STREAM_RB_SIZE = "i2s_stream_rb_size"
 
 AUDIO_FORMAT = {
     "MP3": "mp3",
@@ -46,10 +52,23 @@ CONFIG_SCHEMA = cv.All(
             cv.Required(CONF_I2S_LRCLK_PIN): pins.internal_gpio_output_pin_number,
             cv.Optional(CONF_I2S_BCLK_PIN): pins.internal_gpio_output_pin_number,
             cv.Optional(CONF_I2S_MCLK_PIN): pins.internal_gpio_output_pin_number,
-            cv.Optional(CONF_ACCESS_TOKEN, ""): cv.string,
-            cv.Optional(CONF_FFMPEG_SERVER, default="http://homeassistant.local:8123"): cv.string,
+            cv.Optional(CONF_TRANSCODE_ACCESS_TOKEN, ""): cv.string,
+            cv.Optional(CONF_TRANSCODE_SERVER, default="http://homeassistant.local:8123"): cv.string,
             cv.Optional(CONF_FORMAT, default="FLAC"): cv.enum(AUDIO_FORMAT),
-            cv.Optional(CONF_SAMPLE_RATE): cv.int_range(min=8000),
+            #use the CD standard
+            cv.Optional(CONF_SAMPLE_RATE, default=44100): cv.int_range(min=8000),
+            #50 * 20 * 1024
+            cv.Optional(CONF_HTTP_STREAM_RB_SIZE, default=1024000): cv.int_range(
+                min=4000, max=4000000
+            ),
+            #10 * 1024
+            cv.Optional(CONF_ESP_DECODER_RB_SIZE, default=10240): cv.int_range(
+                min=1000, max=100000
+            ),
+            #8 * 1024
+            cv.Optional(CONF_I2S_STREAM_RB_SIZE, default=8192): cv.int_range(
+                min=1000, max=100000
+            ),
         }
     ),
     cv.only_with_esp_idf,
@@ -66,14 +85,20 @@ async def to_code(config):
         cg.add(var.set_bclk_pin(config[CONF_I2S_BCLK_PIN]))
     if CONF_I2S_MCLK_PIN in config:
         cg.add(var.set_mclk_pin(config[CONF_I2S_MCLK_PIN]))
-    if CONF_ACCESS_TOKEN in config:
-        cg.add(var.set_access_token(config[CONF_ACCESS_TOKEN]))
-    if CONF_FFMPEG_SERVER in config:
-        cg.add(var.set_ffmpeg_server(config[CONF_FFMPEG_SERVER]))
-    if CONF_FORMAT in config:
-        cg.add(var.set_format(config[CONF_FORMAT]))
-    if CONF_SAMPLE_RATE in config:
-        cg.add(var.set_rate(config[CONF_SAMPLE_RATE]))
+    if CONF_TRANSCODE_ACCESS_TOKEN in config:
+        cg.add(var.set_access_token(config[CONF_TRANSCODE_ACCESS_TOKEN]))
+    if CONF_TRANSCODE_SERVER in config:
+        cg.add(var.set_ffmpeg_server(config[CONF_TRANSCODE_SERVER]))
+    if CONF_TRANSCODE_FORMAT in config:
+        cg.add(var.set_format(config[CONF_TRANSCODE_FORMAT]))
+    if CONF_TRANSCODE_SAMPLE_RATE in config:
+        cg.add(var.set_rate(config[CONF_TRANSCODE_SAMPLE_RATE]))
+    if CONF_HTTP_STREAM_RB_SIZE in config:
+        cg.add(var.set_http_stream_rb_size(config[CONF_HTTP_STREAM_RB_SIZE]))
+    if CONF_ESP_DECODER_RB_SIZE in config:
+        cg.add(var.set_esp_decoder_rb_size(config[CONF_ESP_DECODER_RB_SIZE]))
+    if CONF_I2S_STREAM_RB_SIZE in config:
+        cg.add(var.set_i2s_stream_rb_size(config[CONF_I2S_STREAM_RB_SIZE]))
 
     cg.add_define("USE_ESP_ADF_VAD")
     

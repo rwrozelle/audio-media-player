@@ -48,6 +48,8 @@ see the new attributes:
     # sample rate for transcoding, defaults to 44100
     transcode_sample_rate: 48000
 ```
+Transcoding will strip metadata and embedded image that will mean smaller file transferred and less work by Pipeline in extracting track stream.
+
 
 ![image info](./images/media-player.PNG)
 
@@ -67,13 +69,13 @@ This component is built to solve the following use case:  Be able to play an ext
 ![image info](./images/media-source.PNG)
 
 The code uses esp_decoder and is configured for the following:
+Note: reduced the list to shrink size of flash image.
 
 * DEFAULT_ESP_FLAC_DECODER_CONFIG(),
 * DEFAULT_ESP_MP3_DECODER_CONFIG(),
 * DEFAULT_ESP_WAV_DECODER_CONFIG(),
 
-I've only used it with flac and mp3 files. Flac files play correct "most" of the time, a little chattering every now and then. I've written a Python script to use ffmpeg to convert flac files to mp3(320Kb) and found the sound comparible with less to no chattering.  I'm not an audio-file, I just built this to be able to reuse old stereo equipment that I own and learn about esphome.
-Note on chattering:  This may have more to do with my LAN than something going on in the chip.
+I've only used it with flac and mp3 files.  Recent increase in default http_stream ring buffer has improved flac file performance.
 
 ## Example Yaml
 ```
@@ -191,20 +193,20 @@ audio_media_player:
     i2s_bclk_pin: GPIO6
     i2s_dout_pin: GPIO5
     #below turns on and off a switch configured in HA, remove if not using.
-    on_turn_on:
-      then:
-        - logger.log: "Turn On Media Player 1"
-        - homeassistant.service:
-            service: switch.turn_on
-            data:
-              entity_id: switch.media_player_1_switch
-    on_turn_off:
-      then:
-        - logger.log: "Turn Off Media Player 1"
-        - homeassistant.service:
-            service: switch.turn_off
-            data:
-              entity_id: switch.media_player_1_switch
+    #on_turn_on:
+    #  then:
+    #    - logger.log: "Turn On Media Player 1"
+    #    - homeassistant.service:
+    #        service: switch.turn_on
+    #        data:
+    #          entity_id: switch.media_player_1_switch
+    #on_turn_off:
+    #  then:
+    #    - logger.log: "Turn Off Media Player 1"
+    #    - homeassistant.service:
+    #        service: switch.turn_off
+    #        data:
+    #          entity_id: switch.media_player_1_switch
 ```
 
 ## Config Folder Structure (Same folder that contains configuration.yaml for HA)

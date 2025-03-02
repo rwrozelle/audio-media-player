@@ -19,20 +19,8 @@ const char *pipeline_state_to_string(SimpleAdfPipelineState state);
 const char *audio_element_status_to_string(audio_element_status_t status);
 
 class SimpleAdfMediaPipeline {
-//class SimpleAdfMediaPipeline {
 
  public:
-  int http_stream_rb_size{50 * HTTP_STREAM_RINGBUFFER_SIZE};
-  int http_stream_task_core{HTTP_STREAM_TASK_CORE};
-  int http_stream_task_prio{HTTP_STREAM_TASK_PRIO};
-  
-  int esp_decoder_rb_size{ESP_DECODER_RINGBUFFER_SIZE};
-  int esp_decoder_task_core{ESP_DECODER_TASK_CORE};
-  int esp_decoder_task_prio{ESP_DECODER_TASK_PRIO};
-  
-  int i2s_stream_rb_size{I2S_STREAM_RINGBUFFER_SIZE};
-  int i2s_stream_task_core{I2S_STREAM_TASK_CORE};
-  int i2s_stream_task_prio{I2S_STREAM_TASK_PRIO};
 
   void set_dout_pin(int pin) { this->dout_pin_ = pin; }
   void set_mclk_pin(int pin) { this->mclk_pin_ = pin; }
@@ -45,8 +33,6 @@ class SimpleAdfMediaPipeline {
   void set_http_stream_rb_size(int rb_size) {this ->http_stream_rb_size_ = rb_size; }
   void set_esp_decoder_rb_size(int rb_size) {this ->esp_decoder_rb_size_ = rb_size; }
   void set_i2s_stream_rb_size(int rb_size) {this ->i2s_stream_rb_size_ = rb_size; }
-
-  //media_player::MediaPlayerState prior_state{media_player::MEDIA_PLAYER_STATE_NONE};
 
   void dump_config();
   void set_url(const std::string& url, bool is_announcement = false);
@@ -61,9 +47,9 @@ class SimpleAdfMediaPipeline {
   void clean_up();
   SimpleAdfPipelineState loop();
   bool is_announcement() { return this->is_announcement_; }
-  audio_element_handle_t get_esp_decoder() { return this->esp_decoder_; }
-  audio_element_handle_t get_i2s_stream_writer() { return this->i2s_stream_writer_; }
-  SimpleAdfPipelineState get_state() { return this->state_; }
+  //audio_element_handle_t get_esp_decoder() { return this->esp_decoder_; }
+  //audio_element_handle_t get_i2s_stream_writer() { return this->i2s_stream_writer_; }
+  //SimpleAdfPipelineState get_state() { return this->state_; }
   
   static std::string access_token;
 

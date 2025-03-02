@@ -104,7 +104,7 @@ void SimpleAdfMediaPipeline::dump_config() {
   }
   esph_log_config(TAG, "http stream rb size: %d",this->http_stream_rb_size_); 
   esph_log_config(TAG, "esp decoder rb size: %d",this->esp_decoder_rb_size_); 
-  esph_log_config(TAG, "i2s stream rb size: %d",this->i2s_stream_rb_size);    
+  esph_log_config(TAG, "i2s stream rb size: %d",this->i2s_stream_rb_size_);    
 }
 
 void SimpleAdfMediaPipeline::set_url(const std::string& url, bool is_announcement) {

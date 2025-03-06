@@ -1,5 +1,5 @@
 # ESPHome - Audio Media Player
-## Install Version: ESPHome-2024.12.4, Core: 2025.2.0, ADF 2.7
+## Install Version: ESPHome-2025.2.2, Core: 2025.3.0, ADF 2.7
 This is the ADF 2.7 version.  It does not use i2s_audio because it is still using legacy driver while this code is using new i2s driver.
 Lots of refactoring in this branch.
 Removed Join/Unjoin, I'm not using it and not testing it, so removing it.
@@ -11,12 +11,7 @@ Sibling Projects:
 * https://github.com/rwrozelle/core
 * * /homeassistant/components/esphome - required 
 * * /homeassistant/components/jellyfin - optional to be able to play artists and albums from a jellyfin server
-* * /homeassistant/components/media_source - use this if you are using dlna_dms and/ jellyfin
-
-If you install Jellyfin custom component, when you open the Browse Media on Jellyfin, you'll notice that at the Artist and Album level, the Play button is available.
-
-Jellyfin is an open source media-server: https://jellyfin.org/
-
+* * /homeassistant/components/media_source - use this if you are using dlna_dms and/ jellyfin.  If you install Jellyfin custom component, when you open the Browse Media on Jellyfin, you'll notice that at the Artist and Album level, the Play button is available.  Jellyfin is an open source media-server: https://jellyfin.org/
 * https://github.com/rwrozelle/esphome, the components api and media_player.
 * https://github.com/rwrozelle/aioesphomeapi
 
@@ -213,8 +208,8 @@ config
   aioesphomeapi
   custom_components
     esphome
-	jellyfin
-	media-source
+    jellyfin
+    media-source
   esphome
     components
       api
@@ -298,7 +293,8 @@ http://east-mp3-128.streamthejazzgroove.com/stream
 * play - adds file to end of playlist and restarts.
 
 ## Announcements
-Announcements are added to a separate "announcements" playlist and current playlist is stopped and all added announcements are played, then current track is restarted.
+SIMPLE pipeline type - current track is stopped and announcement is played, then current track is restarted from beginning.
+COMPLEX pipeline type - announcement is played while current track is ducked by 15 dB.
 
 ## Automation Scripts for use with Assist
 These work if you install Jellyfin custom component, assumes there is only 1 media_player available in an area.
@@ -312,6 +308,37 @@ triggers:
     trigger: conversation
 conditions: []
 actions:
+  - action: media_player.shuffle_set
+    metadata: {}
+    target:
+      area_id: "{{area_id(trigger.device_id) }}"
+    data:
+      shuffle: false
+  - action: media_player.play_media
+    metadata: {}
+    data:
+      media_content_id: media-source://jellyfin/?MusicArtist={{ trigger.slots.artist }}
+      media_content_type: music
+    target:
+      area_id: "{{area_id(trigger.device_id) }}"
+mode: single
+```
+### Play Shuffled Artist
+```
+alias: Conversation - Play Shuffled Artist
+description: ""
+triggers:
+  - command:
+      - Play shuffled artist {artist}
+    trigger: conversation
+conditions: []
+actions:
+  - action: media_player.shuffle_set
+    metadata: {}
+    target:
+      area_id: "{{area_id(trigger.device_id) }}"
+    data:
+      shuffle: true
   - action: media_player.play_media
     metadata: {}
     data:
@@ -340,7 +367,6 @@ actions:
       area_id: "{{area_id(trigger.device_id) }}"
 mode: single
 ```
-
 # Installation
 This is how I install, there are other approaches:
 

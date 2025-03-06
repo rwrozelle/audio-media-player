@@ -17,13 +17,24 @@ static const char *const TAG = "audio_media_player";
 void AudioMediaPlayer::dump_config() {
 
   esph_log_config(TAG, "AudioMediaPlayer");
+  esph_log_config(TAG, "volume increment %d%%", (int)(this->volume_increment_ * 100));
+  esph_log_config(TAG, "volume max %d%%", (int)(this->volume_max_ * 100));
+  esph_log_config(TAG, "volume min %d%%", (int)(this->volume_min_ * 100));
   this->pipeline_->dump_config();
 }
 
 void AudioMediaPlayer::setup() {
 
   this->state = media_player::MEDIA_PLAYER_STATE_OFF;
+  
   this->volume = .25;
+  if (this->volume > this->volume_max_) {
+    this->volume = this->volume_max_;
+  }
+  else if (this->volume < this->volume_min_) {
+    this->volume = this->volume_min_;
+  }
+  
   if (this->pipeline_type_ == 1) {
     this->pipeline_ = new ComplexAdfMediaPipeline();
   }
@@ -38,9 +49,9 @@ void AudioMediaPlayer::setup() {
   pipeline_->set_ffmpeg_server(this->ffmpeg_server_);
   pipeline_->set_format(this->format_);
   pipeline_->set_rate(this->rate_);
-  pipeline_->set_http_stream_rb_size(this ->http_stream_rb_size_);
-  pipeline_->set_esp_decoder_rb_size(this ->esp_decoder_rb_size_);
-  pipeline_->set_i2s_stream_rb_size(this ->i2s_stream_rb_size_);
+  pipeline_->set_http_stream_rb_size(this->http_stream_rb_size_);
+  pipeline_->set_esp_decoder_rb_size(this->esp_decoder_rb_size_);
+  pipeline_->set_i2s_stream_rb_size(this->i2s_stream_rb_size_);
 }
 
 void AudioMediaPlayer::publish_state() {
@@ -206,17 +217,17 @@ void AudioMediaPlayer::control(const media_player::MediaPlayerCall &call) {
         this->unmute_();
         break;
       case media_player::MEDIA_PLAYER_COMMAND_VOLUME_UP: {
-        float new_volume = this->volume + 0.05f;
-        if (new_volume > 1.0f) {
-          new_volume = 1.0f;
+        float new_volume = this->volume + this->volume_increment_;
+        if (new_volume > this->volume_max_) {
+          new_volume = this->volume_max_;
         }
         this->set_volume_(new_volume);
         break;
       }
       case media_player::MEDIA_PLAYER_COMMAND_VOLUME_DOWN: {
-        float new_volume = this->volume - 0.05f;
-        if (new_volume < 0.0f) {
-          new_volume = 0.0f;
+        float new_volume = this->volume - this->volume_increment_;
+        if (new_volume < this->volume_min_) {
+          new_volume = this->volume_min_;
         }
         this->set_volume_(new_volume);
         break;
@@ -426,8 +437,16 @@ void AudioMediaPlayer::resume_()
 }
 
 void AudioMediaPlayer::set_volume_(float volume, bool publish) {
-  this->pipeline_->set_volume(round(100 * volume));
-  this->volume = volume;
+  
+  float new_volume = volume;
+  if (new_volume > this->volume_max_) {
+    new_volume = this->volume_max_;
+  }
+  else if (new_volume < this->volume_min_) {
+    new_volume = this->volume_min_;
+  }
+  this->pipeline_->set_volume(round(100 * new_volume));
+  this->volume = new_volume;
   if (publish) {
     this->force_publish_ = true;
     this->publish_state();

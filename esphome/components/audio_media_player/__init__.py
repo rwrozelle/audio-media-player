@@ -9,10 +9,8 @@ import esphome.config_validation as cv
 from esphome import pins
 
 from esphome.const import (
-    CONF_FORMAT,
     CONF_ID,
     CONF_NAME,
-    CONF_SAMPLE_RATE,
 )
 CODEOWNERS = ["@rwrozelle"]
 DEPENDENCIES = ["media_player"]
@@ -38,6 +36,10 @@ CONF_ESP_DECODER_RB_SIZE = "esp_decoder_rb_size"
 CONF_I2S_STREAM_RB_SIZE = "i2s_stream_rb_size"
 CONF_PIPELINE_TYPE = "adf_pipeline_type"
 
+CONF_VOLUME_INCREMENT = "volume_increment"
+CONF_VOLUME_MIN = "volume_min"
+CONF_VOLUME_MAX = "volume_max"
+
 PIPELINE_TYPE = {
     "SIMPLE": "SIMPLE",
     "COMPLEX": "COMPLEX",
@@ -48,7 +50,7 @@ AUDIO_FORMAT = {
     "WAV": "wav",
     "NONE": "none",
 }
-        
+
 CONFIG_SCHEMA = cv.All(
     media_player.MEDIA_PLAYER_SCHEMA.extend(
         {
@@ -60,9 +62,9 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_I2S_MCLK_PIN): pins.internal_gpio_output_pin_number,
             cv.Optional(CONF_TRANSCODE_ACCESS_TOKEN, ""): cv.string,
             cv.Optional(CONF_TRANSCODE_SERVER, default="http://homeassistant.local:8123"): cv.string,
-            cv.Optional(CONF_FORMAT, default="FLAC"): cv.enum(AUDIO_FORMAT),
+            cv.Optional(CONF_TRANSCODE_FORMAT, default="FLAC"): cv.enum(AUDIO_FORMAT),
             #use the CD standard
-            cv.Optional(CONF_SAMPLE_RATE, default=44100): cv.int_range(min=8000),
+            cv.Optional(CONF_TRANSCODE_SAMPLE_RATE, default=44100): cv.int_range(min=8000),
             #50 * 20 * 1024
             cv.Optional(CONF_HTTP_STREAM_RB_SIZE, default=1024000): cv.int_range(
                 min=4000, max=4000000
@@ -75,6 +77,9 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_I2S_STREAM_RB_SIZE, default=8192): cv.int_range(
                 min=1000, max=100000
             ),
+            cv.Optional(CONF_VOLUME_INCREMENT, default=0.05): cv.percentage,
+            cv.Optional(CONF_VOLUME_MAX, default=1.0): cv.percentage,
+            cv.Optional(CONF_VOLUME_MIN, default=0.0): cv.percentage,
         }
     ),
     cv.only_with_esp_idf,
@@ -85,31 +90,23 @@ async def to_code(config):
     await cg.register_component(var, config)
     await media_player.register_media_player(var, config)
     
-    if CONF_PIPELINE_TYPE in config:
-        cg.add(var.set_pipeline_type(config[CONF_PIPELINE_TYPE]))
-    else:
-        cg.add(var.set_pipeline_type('simple'))
-        
+    cg.add(var.set_pipeline_type(config[CONF_PIPELINE_TYPE]))        
     cg.add(var.set_dout_pin(config[CONF_I2S_DOUT_PIN]))
     cg.add(var.set_lrclk_pin(config[CONF_I2S_LRCLK_PIN]))
     if CONF_I2S_BCLK_PIN in config:
         cg.add(var.set_bclk_pin(config[CONF_I2S_BCLK_PIN]))
     if CONF_I2S_MCLK_PIN in config:
         cg.add(var.set_mclk_pin(config[CONF_I2S_MCLK_PIN]))
-    if CONF_TRANSCODE_ACCESS_TOKEN in config:
-        cg.add(var.set_access_token(config[CONF_TRANSCODE_ACCESS_TOKEN]))
-    if CONF_TRANSCODE_SERVER in config:
-        cg.add(var.set_ffmpeg_server(config[CONF_TRANSCODE_SERVER]))
-    if CONF_TRANSCODE_FORMAT in config:
-        cg.add(var.set_format(config[CONF_TRANSCODE_FORMAT]))
-    if CONF_TRANSCODE_SAMPLE_RATE in config:
-        cg.add(var.set_rate(config[CONF_TRANSCODE_SAMPLE_RATE]))
-    if CONF_HTTP_STREAM_RB_SIZE in config:
-        cg.add(var.set_http_stream_rb_size(config[CONF_HTTP_STREAM_RB_SIZE]))
-    if CONF_ESP_DECODER_RB_SIZE in config:
-        cg.add(var.set_esp_decoder_rb_size(config[CONF_ESP_DECODER_RB_SIZE]))
-    if CONF_I2S_STREAM_RB_SIZE in config:
-        cg.add(var.set_i2s_stream_rb_size(config[CONF_I2S_STREAM_RB_SIZE]))
+    cg.add(var.set_access_token(config[CONF_TRANSCODE_ACCESS_TOKEN]))
+    cg.add(var.set_ffmpeg_server(config[CONF_TRANSCODE_SERVER]))
+    cg.add(var.set_format(config[CONF_TRANSCODE_FORMAT]))
+    cg.add(var.set_rate(config[CONF_TRANSCODE_SAMPLE_RATE]))
+    cg.add(var.set_http_stream_rb_size(config[CONF_HTTP_STREAM_RB_SIZE]))
+    cg.add(var.set_esp_decoder_rb_size(config[CONF_ESP_DECODER_RB_SIZE]))
+    cg.add(var.set_i2s_stream_rb_size(config[CONF_I2S_STREAM_RB_SIZE]))
+    cg.add(var.set_volume_increment(config[CONF_VOLUME_INCREMENT]))
+    cg.add(var.set_volume_max(config[CONF_VOLUME_MAX]))
+    cg.add(var.set_volume_min(config[CONF_VOLUME_MIN]))
 
     cg.add_define("USE_ESP_ADF_VAD")
     

@@ -60,6 +60,11 @@ class AudioMediaPlayer : public Component, public media_player::MediaPlayer {
       this->pipeline_type_ = 0;
     }
   }
+
+  // Percentage to increase or decrease the volume for volume up or volume down commands
+  void set_volume_increment(float volume_increment) { this->volume_increment_ = volume_increment; }
+  void set_volume_max(float volume_max) { this->volume_max_ = volume_max; }
+  void set_volume_min(float volume_min) { this->volume_min_ = volume_min; }
   
   media_player::MediaPlayerState prior_state{media_player::MEDIA_PLAYER_STATE_NONE};
 
@@ -117,6 +122,9 @@ class AudioMediaPlayer : public Component, public media_player::MediaPlayer {
   int esp_decoder_rb_size_{ESP_DECODER_RINGBUFFER_SIZE};
   int i2s_stream_rb_size_{I2S_STREAM_RINGBUFFER_SIZE};
   int32_t pipeline_type_{0};
+  float volume_increment_;
+  float volume_max_;
+  float volume_min_;
   AdfMediaPipeline *pipeline_{nullptr};
 
   AudioPlaylists audioPlaylists_;

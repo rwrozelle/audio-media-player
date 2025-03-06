@@ -288,20 +288,6 @@ int AudioPlaylists::parse_m3u_into_playlist_(const char *url, bool toBack, bool 
     return rc;
 }
 
-void AudioPlaylists::clean_announcements()
-{
-  unsigned int vid = this->announcements_.size();
-  if ( vid > 0 ) {
-    /*
-    for(unsigned int i = 0; i < vid; i++)
-    {
-      delete this->announcements_[i];
-    }
-    */
-    this->announcements_.clear();
-  }
-}
-
 }  // namespace esp_adf
 }  // namespace esphome
 

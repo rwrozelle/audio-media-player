@@ -1,112 +1,115 @@
-
+from esphome import pins
 import os
 import esphome.codegen as cg
 from esphome.components.esp32 import add_idf_component
-from esphome.components import media_player, esp32
+from esphome.components import esp32, media_player
 from esphome.components.esp32 import add_idf_component
 import esphome.config_validation as cv
 
 from esphome import pins
 
-from esphome.const import CONF_ID, CONF_MODE
-
-from esphome.components.i2s_audio import (
-    I2SAudioComponent,
-    I2SAudioOut,
-    CONF_I2S_AUDIO_ID,
-    CONF_I2S_DOUT_PIN,
-    CONF_LEFT,
-    CONF_RIGHT,
-    CONF_MONO,
-    CONF_STEREO,
+from esphome.const import (
+    CONF_FORMAT,
+    CONF_ID,
+    CONF_NAME,
+    CONF_SAMPLE_RATE,
 )
-CONF_USE_ADF_ALC = "adf_alc"
-
-CODEOWNERS = ["@rwrozelle","@gnumpi","@jesserockz"]
-DEPENDENCIES = ["i2s_audio", "media_player"]
+CODEOWNERS = ["@rwrozelle"]
+DEPENDENCIES = ["media_player"]
 AUTO_LOAD = ["media_player"]
 
 esp_adf_ns = cg.esphome_ns.namespace("esp_adf")
 
 AudioMediaPlayer = esp_adf_ns.class_(
-    "AudioMediaPlayer", cg.Component, media_player.MediaPlayer, I2SAudioOut
+    "AudioMediaPlayer", cg.Component, media_player.MediaPlayer
 )
 
-i2s_dac_mode_t = cg.global_ns.enum("i2s_dac_mode_t")
+CONF_I2S_DOUT_PIN = "i2s_dout_pin"
+CONF_I2S_MCLK_PIN = "i2s_mclk_pin"
+CONF_I2S_BCLK_PIN = "i2s_bclk_pin"
+CONF_I2S_LRCLK_PIN = "i2s_lrclk_pin"
+CONF_TRANSCODE_ACCESS_TOKEN = "transcode_access_token"
+CONF_TRANSCODE_SERVER = "transcode_server"
+CONF_TRANSCODE_FORMAT = "transcode_format"
+CONF_TRANSCODE_SAMPLE_RATE = "transcode_sample_rate"
 
-CONF_AUDIO_ID = "audio_id"
-CONF_DAC_TYPE = "dac_type"
-CONF_I2S_COMM_FMT = "i2s_comm_fmt"
+CONF_HTTP_STREAM_RB_SIZE = "http_stream_rb_size"
+CONF_ESP_DECODER_RB_SIZE = "esp_decoder_rb_size"
+CONF_I2S_STREAM_RB_SIZE = "i2s_stream_rb_size"
+CONF_PIPELINE_TYPE = "adf_pipeline_type"
 
-INTERNAL_DAC_OPTIONS = {
-    CONF_LEFT: i2s_dac_mode_t.I2S_DAC_CHANNEL_LEFT_EN,
-    CONF_RIGHT: i2s_dac_mode_t.I2S_DAC_CHANNEL_RIGHT_EN,
-    CONF_STEREO: i2s_dac_mode_t.I2S_DAC_CHANNEL_BOTH_EN,
+PIPELINE_TYPE = {
+    "SIMPLE": "SIMPLE",
+    "COMPLEX": "COMPLEX",
 }
-
-EXTERNAL_DAC_OPTIONS = [CONF_MONO, CONF_STEREO]
-
-NO_INTERNAL_DAC_VARIANTS = [esp32.const.VARIANT_ESP32S2]
-
-I2C_COMM_FMT_OPTIONS = ["lsb", "msb"]
-
-
-def validate_esp32_variant(config):
-    if config[CONF_DAC_TYPE] != "internal":
-        return config
-    variant = esp32.get_esp32_variant()
-    if variant in NO_INTERNAL_DAC_VARIANTS:
-        raise cv.Invalid(f"{variant} does not have an internal DAC")
-    return config
-
-
+AUDIO_FORMAT = {
+    "MP3": "mp3",
+    "FLAC": "flac",
+    "WAV": "wav",
+    "NONE": "none",
+}
+        
 CONFIG_SCHEMA = cv.All(
-    cv.typed_schema(
+    media_player.MEDIA_PLAYER_SCHEMA.extend(
         {
-            "internal": media_player.MEDIA_PLAYER_SCHEMA.extend(
-                {
-                    cv.GenerateID(): cv.declare_id(AudioMediaPlayer),
-                    cv.GenerateID(CONF_I2S_AUDIO_ID): cv.use_id(I2SAudioComponent),
-                    cv.Required(CONF_MODE): cv.enum(INTERNAL_DAC_OPTIONS, lower=True),
-                }
-            ).extend(cv.COMPONENT_SCHEMA),
-            "external": media_player.MEDIA_PLAYER_SCHEMA.extend(
-                {
-                    cv.GenerateID(): cv.declare_id(AudioMediaPlayer),
-                    cv.GenerateID(CONF_I2S_AUDIO_ID): cv.use_id(I2SAudioComponent),
-                    cv.Required(
-                        CONF_I2S_DOUT_PIN
-                    ): pins.internal_gpio_output_pin_number,
-                    cv.Optional(CONF_MODE, default="mono"): cv.one_of(
-                        *EXTERNAL_DAC_OPTIONS, lower=True
-                    ),
-                    cv.Optional(CONF_I2S_COMM_FMT, default="msb"): cv.one_of(
-                        *I2C_COMM_FMT_OPTIONS, lower=True
-                    ),
-                    cv.Optional(CONF_USE_ADF_ALC, default=True): cv.boolean,
-                }
-            ).extend(cv.COMPONENT_SCHEMA),
-        },
-        key=CONF_DAC_TYPE,
+            cv.GenerateID(): cv.declare_id(AudioMediaPlayer),
+            cv.Optional(CONF_PIPELINE_TYPE, default="SIMPLE"): cv.enum(PIPELINE_TYPE),
+            cv.Required(CONF_I2S_DOUT_PIN): pins.internal_gpio_output_pin_number,
+            cv.Required(CONF_I2S_LRCLK_PIN): pins.internal_gpio_output_pin_number,
+            cv.Optional(CONF_I2S_BCLK_PIN): pins.internal_gpio_output_pin_number,
+            cv.Optional(CONF_I2S_MCLK_PIN): pins.internal_gpio_output_pin_number,
+            cv.Optional(CONF_TRANSCODE_ACCESS_TOKEN, ""): cv.string,
+            cv.Optional(CONF_TRANSCODE_SERVER, default="http://homeassistant.local:8123"): cv.string,
+            cv.Optional(CONF_FORMAT, default="FLAC"): cv.enum(AUDIO_FORMAT),
+            #use the CD standard
+            cv.Optional(CONF_SAMPLE_RATE, default=44100): cv.int_range(min=8000),
+            #50 * 20 * 1024
+            cv.Optional(CONF_HTTP_STREAM_RB_SIZE, default=1024000): cv.int_range(
+                min=4000, max=4000000
+            ),
+            #10 * 1024
+            cv.Optional(CONF_ESP_DECODER_RB_SIZE, default=10240): cv.int_range(
+                min=1000, max=100000
+            ),
+            #8 * 1024
+            cv.Optional(CONF_I2S_STREAM_RB_SIZE, default=8192): cv.int_range(
+                min=1000, max=100000
+            ),
+        }
     ),
-    validate_esp32_variant,
+    cv.only_with_esp_idf,
 )
-
 
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     await media_player.register_media_player(var, config)
-
-    await cg.register_parented(var, config[CONF_I2S_AUDIO_ID])
-
-    if config[CONF_DAC_TYPE] == "internal":
-        cg.add(var.set_internal_dac_mode(config[CONF_MODE]))
+    
+    if CONF_PIPELINE_TYPE in config:
+        cg.add(var.set_pipeline_type(config[CONF_PIPELINE_TYPE]))
     else:
-        cg.add(var.set_dout_pin(config[CONF_I2S_DOUT_PIN]))
-        cg.add(var.set_external_dac_channels(2 if config[CONF_MODE] == "stereo" else 1))
-        cg.add(var.set_i2s_comm_fmt_lsb(config[CONF_I2S_COMM_FMT] == "lsb"))
-        cg.add(var.set_use_adf_alc(config[CONF_USE_ADF_ALC]))
+        cg.add(var.set_pipeline_type('simple'))
+        
+    cg.add(var.set_dout_pin(config[CONF_I2S_DOUT_PIN]))
+    cg.add(var.set_lrclk_pin(config[CONF_I2S_LRCLK_PIN]))
+    if CONF_I2S_BCLK_PIN in config:
+        cg.add(var.set_bclk_pin(config[CONF_I2S_BCLK_PIN]))
+    if CONF_I2S_MCLK_PIN in config:
+        cg.add(var.set_mclk_pin(config[CONF_I2S_MCLK_PIN]))
+    if CONF_TRANSCODE_ACCESS_TOKEN in config:
+        cg.add(var.set_access_token(config[CONF_TRANSCODE_ACCESS_TOKEN]))
+    if CONF_TRANSCODE_SERVER in config:
+        cg.add(var.set_ffmpeg_server(config[CONF_TRANSCODE_SERVER]))
+    if CONF_TRANSCODE_FORMAT in config:
+        cg.add(var.set_format(config[CONF_TRANSCODE_FORMAT]))
+    if CONF_TRANSCODE_SAMPLE_RATE in config:
+        cg.add(var.set_rate(config[CONF_TRANSCODE_SAMPLE_RATE]))
+    if CONF_HTTP_STREAM_RB_SIZE in config:
+        cg.add(var.set_http_stream_rb_size(config[CONF_HTTP_STREAM_RB_SIZE]))
+    if CONF_ESP_DECODER_RB_SIZE in config:
+        cg.add(var.set_esp_decoder_rb_size(config[CONF_ESP_DECODER_RB_SIZE]))
+    if CONF_I2S_STREAM_RB_SIZE in config:
+        cg.add(var.set_i2s_stream_rb_size(config[CONF_I2S_STREAM_RB_SIZE]))
 
     cg.add_define("USE_ESP_ADF_VAD")
     
@@ -115,9 +118,14 @@ async def to_code(config):
     cg.add_platformio_option(
         "board_build.embed_txtfiles", "components/dueros_service/duer_profile"
     )
-
+        
     esp32.add_idf_sdkconfig_option("CONFIG_ESP_TLS_INSECURE", True)
     esp32.add_idf_sdkconfig_option("CONFIG_ESP_TLS_SKIP_SERVER_CERT_VERIFY", True)
+
+    esp32.add_extra_build_file(
+        "esp_adf_patches/idf_v5.1_freertos.patch",
+        "https://github.com/espressif/esp-adf/raw/v2.7/idf_patches/idf_v5.1_freertos.patch",
+    )
 
     esp32.add_extra_script(
         "pre",
@@ -125,15 +133,10 @@ async def to_code(config):
         os.path.join(os.path.dirname(__file__), "apply_adf_patches.py.script"),
     )
 
-    esp32.add_extra_build_file(
-        "esp_adf_patches/idf_v4.4_freertos.patch",
-        "https://github.com/espressif/esp-adf/raw/v2.6/idf_patches/idf_v4.4_freertos.patch",
-    )
-
     esp32.add_idf_component(
         name="esp-adf",
         repo="https://github.com/espressif/esp-adf.git",
-        ref="v2.6",
+        ref="v2.7",
         path="components",
         submodules=["components/esp-adf-libs", "components/esp-sr"],
         components=[

@@ -7,7 +7,7 @@ New optional variable: adf_pipeline_type
 * SIMPLE (default) - single pipeline http reader, decoder, is2 writer
 * COMPLEX - 3 pipelines that downmix any announcements into output.
 
-
+Sibling Projects:
 * https://github.com/rwrozelle/core
 * * /homeassistant/components/esphome - required 
 * * /homeassistant/components/jellyfin - optional to be able to play artists and albums from a jellyfin server

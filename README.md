@@ -1,6 +1,13 @@
 # ESPHome - Audio Media Player
 ## Install Version: ESPHome-2024.12.4, Core: 2025.2.0, ADF 2.7
 This is the ADF 2.7 version.  It does not use i2s_audio because it is still using legacy driver while this code is using new i2s driver.
+Lots of refactoring in this branch.
+Removed Join/Unjoin, I'm not using it and not testing it, so removing it.
+New optional variable: adf_pipeline_type
+* SIMPLE (default) - single pipeline http reader, decoder, is2 writer
+* COMPLEX - 3 pipelines that downmix any announcements into output.
+
+
 * https://github.com/rwrozelle/core
 * * /homeassistant/components/esphome - required 
 * * /homeassistant/components/jellyfin - optional to be able to play artists and albums from a jellyfin server
@@ -32,8 +39,6 @@ This external component provides an audio media-player with the following HA Ava
 * play_media - can turn an m3u file into a playlist
 * * enqueue - add, next, play, replace
 * * announce - after announcement is played, the current track is restarted
-* join - members of group are will turn off, turn on, set volume, and play the same media as leader. Synchronization is attempted by telling leader and group members to start media at the same time. Uses the Time component in the sntp platform to assume that chips have the same time.
-* unjoin
 
 It also can optionally transcode using the ffmpeg server available as part of the ESPHome integration.
 see the new attributes:
@@ -160,19 +165,11 @@ wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
 
-# time component is not needed if not attempting to use join/unjoin
-time:
-  - platform: sntp
-    id: sntp_time
-    timezone: America/New_York
-    servers:
-     - 0.pool.ntp.org
-     - 1.pool.ntp.org
-     - 2.pool.ntp.org
-
 # note: not using i2s_audio. Assumes this is the only i2s app running.  
 audio_media_player:
     name: "Media Player 1"
+    #either SIMPLE (default) or COMPLEX
+    adf_pipeline_type: COMPLEX
     # long lived bearer token, stored in esphome/secrets.yaml used to contact ffmpeg server for transcoding
     # if not provided, transcoding does not occur.
     transcode_access_token: !secret access_token 
@@ -302,26 +299,6 @@ http://east-mp3-128.streamthejazzgroove.com/stream
 ## Announcements
 Announcements are added to a separate "announcements" playlist and current playlist is stopped and all added announcements are played, then current track is restarted.
 
-## Join / Unjoin
-There is commented code which is an attempt to synchronize sound accross the group members leveraging multicast. I never could get it to work right. Instead, code attempts to get group members to start each track at the same time as the leader.
-
-Best used when speakers are not in earshot of each other since small variation in play timing is inevitable with this approach.
-I've noticed some chatter that I think is caused by my Media Server being overwhelmed by multiple requests of same file.  This may be an incorrect thought.
-
-The knowledge of the group members does not survive a reboot. Here is an example script to set the group members:
-```
-alias: Media Player 1 Join
-sequence:
-  - service: media_player.join
-    metadata: {}
-    data:
-      group_members:
-        - media_player.media_player_2
-    target:
-      entity_id: media_player.media_player_1
-mode: single
-description: ""
-```
 ## Automation Scripts for use with Assist
 These work if you install Jellyfin custom component, assumes there is only 1 media_player available in an area.
 ### Play Artist

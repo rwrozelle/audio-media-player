@@ -36,7 +36,12 @@ CONF_TRANSCODE_SAMPLE_RATE = "transcode_sample_rate"
 CONF_HTTP_STREAM_RB_SIZE = "http_stream_rb_size"
 CONF_ESP_DECODER_RB_SIZE = "esp_decoder_rb_size"
 CONF_I2S_STREAM_RB_SIZE = "i2s_stream_rb_size"
+CONF_PIPELINE_TYPE = "adf_pipeline_type"
 
+PIPELINE_TYPE = {
+    "SIMPLE": "SIMPLE",
+    "COMPLEX": "COMPLEX",
+}
 AUDIO_FORMAT = {
     "MP3": "mp3",
     "FLAC": "flac",
@@ -48,6 +53,7 @@ CONFIG_SCHEMA = cv.All(
     media_player.MEDIA_PLAYER_SCHEMA.extend(
         {
             cv.GenerateID(): cv.declare_id(AudioMediaPlayer),
+            cv.Optional(CONF_PIPELINE_TYPE, default="SIMPLE"): cv.enum(PIPELINE_TYPE),
             cv.Required(CONF_I2S_DOUT_PIN): pins.internal_gpio_output_pin_number,
             cv.Required(CONF_I2S_LRCLK_PIN): pins.internal_gpio_output_pin_number,
             cv.Optional(CONF_I2S_BCLK_PIN): pins.internal_gpio_output_pin_number,
@@ -79,6 +85,11 @@ async def to_code(config):
     await cg.register_component(var, config)
     await media_player.register_media_player(var, config)
     
+    if CONF_PIPELINE_TYPE in config:
+        cg.add(var.set_pipeline_type(config[CONF_PIPELINE_TYPE]))
+    else:
+        cg.add(var.set_pipeline_type('simple'))
+        
     cg.add(var.set_dout_pin(config[CONF_I2S_DOUT_PIN]))
     cg.add(var.set_lrclk_pin(config[CONF_I2S_LRCLK_PIN]))
     if CONF_I2S_BCLK_PIN in config:
@@ -107,7 +118,7 @@ async def to_code(config):
     cg.add_platformio_option(
         "board_build.embed_txtfiles", "components/dueros_service/duer_profile"
     )
-
+        
     esp32.add_idf_sdkconfig_option("CONFIG_ESP_TLS_INSECURE", True)
     esp32.add_idf_sdkconfig_option("CONFIG_ESP_TLS_SKIP_SERVER_CERT_VERIFY", True)
 

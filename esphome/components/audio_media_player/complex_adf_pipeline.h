@@ -7,7 +7,7 @@
 namespace esphome {
 namespace esp_adf {
 
-class SimpleAdfMediaPipeline : public AdfMediaPipeline {
+class ComplexAdfMediaPipeline : public AdfMediaPipeline {
 
  public:
   void dump_config() override;
@@ -24,11 +24,23 @@ class SimpleAdfMediaPipeline : public AdfMediaPipeline {
   void pipeline_play_(bool resume) override;
   void pipeline_stop_(bool pause, bool cleanup) override;
   void play_announcement_(const std::string& url) override;
+  void pipeline_announce_();
+
+  audio_pipeline_handle_t pipeline_1_{nullptr};
+  audio_pipeline_handle_t pipeline_2_{nullptr};
+  audio_pipeline_handle_t pipeline_3_{nullptr};
+  audio_element_handle_t http_stream_reader_1_{nullptr};
+  audio_element_handle_t http_stream_reader_2_{nullptr};
+  audio_element_handle_t esp_decoder_1_{nullptr};
+  audio_element_handle_t esp_decoder_2_{nullptr};
+  audio_element_handle_t rsp_filter_1_{nullptr};
+  audio_element_handle_t rsp_filter_2_{nullptr};
+  audio_element_handle_t raw_writer_1_{nullptr};
+  audio_element_handle_t raw_writer_2_{nullptr};
+  audio_element_handle_t downmixer_{nullptr};
   
-  audio_pipeline_handle_t pipeline_{nullptr};
-  audio_element_handle_t http_stream_reader_{nullptr};
-  audio_element_handle_t esp_decoder_{nullptr};
-  bool is_music_info_set_{false};
+  bool is_music_info_set_1_{false};
+  bool is_music_info_set_2_{false};
 };
 
 }  // namespace esp_adf

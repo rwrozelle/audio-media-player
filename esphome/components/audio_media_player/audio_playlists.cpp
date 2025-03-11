@@ -9,7 +9,7 @@
 #include <esp_http_client.h>
 
 namespace esphome {
-namespace esp_adf {
+namespace esp_audio {
 
 static const char *const TAG = "audio_playlists";
 
@@ -27,7 +27,7 @@ void AudioPlaylists::playlist_add(const std::string& uri, bool toBack, bool shuf
       this->update_playlist_order_(1);
       vid = 0;
     }
-    ADFPlaylistTrack track;
+    AudioPlaylistTrack track;
     track.url = uri;
     track.order = 0;
     this->playlist_.push_back(track);
@@ -180,7 +180,7 @@ int AudioPlaylists::parse_m3u_into_playlist_(const char *url, bool toBack, bool 
           std::string artist = "";
           std::string album = "";
           std::string title = "";
-		  std::string thumbnail_url = "";
+          std::string thumbnail_url = "";
           int duration = 0;
           if (toBack) {
             this->update_playlist_order_(1000);
@@ -245,7 +245,7 @@ int AudioPlaylists::parse_m3u_into_playlist_(const char *url, bool toBack, bool 
               else if (strchr(cLine,'#') == NULL) {
                 esph_log_v(TAG, "Create Playlist Track %s: %s: %s duration: %d",
                   artist.c_str(),album.c_str(),title.c_str(),duration);
-                ADFPlaylistTrack track;
+                AudioPlaylistTrack track;
                 track.url = cLine;
                 track.order = vid;
 				track.playlist = playlist;
@@ -288,7 +288,7 @@ int AudioPlaylists::parse_m3u_into_playlist_(const char *url, bool toBack, bool 
     return rc;
 }
 
-}  // namespace esp_adf
+}  // namespace esp_audio
 }  // namespace esphome
 
 #endif  // USE_ESP_IDF

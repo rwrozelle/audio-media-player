@@ -2,25 +2,31 @@
 
 #ifdef USE_ESP_IDF
 
-#include <audio_error.h>
-#include <audio_mem.h>
 #include <cJSON.h>
 
 #include "esphome/core/log.h"
 
 namespace esphome {
-namespace esp_adf {
+namespace esp_audio {
 
 static const char *const TAG = "audio_media_player";
 
 
 void AudioMediaPlayer::dump_config() {
 
-  esph_log_config(TAG, "AudioMediaPlayer");
+#ifdef USE_ADF_SIMPLE_PIPELINE
+  esph_log_config(TAG, "Simple ADF Pipeline");
+#endif
+#ifdef USE_ADF_COMPLEX_PIPELINE
+  esph_log_config(TAG, "Complex ADF Pipeline");
+#endif
+#ifdef USE_AUDIO_SIMPLE_PIPELINE
+  esph_log_config(TAG, "Simple Audio Pipeline");
+#endif
   esph_log_config(TAG, "volume increment %d%%", (int)(this->volume_increment_ * 100));
   esph_log_config(TAG, "volume max %d%%", (int)(this->volume_max_ * 100));
   esph_log_config(TAG, "volume min %d%%", (int)(this->volume_min_ * 100));
-  this->pipeline_->dump_config();
+  this->pipeline_.dump_config();
 }
 
 void AudioMediaPlayer::setup() {
@@ -35,23 +41,17 @@ void AudioMediaPlayer::setup() {
     this->volume = this->volume_min_;
   }
   
-  if (this->pipeline_type_ == 1) {
-    this->pipeline_ = new ComplexAdfMediaPipeline();
-  }
-  else {
-    this->pipeline_ = new SimpleAdfMediaPipeline();
-  }
-  pipeline_->set_dout_pin(this->dout_pin_);
-  pipeline_->set_mclk_pin(this->mclk_pin_);
-  pipeline_->set_bclk_pin(this->bclk_pin_);
-  pipeline_->set_lrclk_pin(this->lrclk_pin_);
-  pipeline_->set_access_token(this->access_token_);
-  pipeline_->set_ffmpeg_server(this->ffmpeg_server_);
-  pipeline_->set_format(this->format_);
-  pipeline_->set_rate(this->rate_);
-  pipeline_->set_http_stream_rb_size(this->http_stream_rb_size_);
-  pipeline_->set_esp_decoder_rb_size(this->esp_decoder_rb_size_);
-  pipeline_->set_i2s_stream_rb_size(this->i2s_stream_rb_size_);
+  this->pipeline_.set_dout_pin(this->dout_pin_);
+  this->pipeline_.set_mclk_pin(this->mclk_pin_);
+  this->pipeline_.set_bclk_pin(this->bclk_pin_);
+  this->pipeline_.set_lrclk_pin(this->lrclk_pin_);
+  this->pipeline_.set_access_token(this->access_token_);
+  this->pipeline_.set_ffmpeg_server(this->ffmpeg_server_);
+  this->pipeline_.set_format(this->format_);
+  this->pipeline_.set_rate(this->rate_);
+  this->pipeline_.set_http_stream_rb_size(this->http_stream_rb_size_);
+  this->pipeline_.set_esp_decoder_rb_size(this->esp_decoder_rb_size_);
+  this->pipeline_.set_i2s_stream_rb_size(this->i2s_stream_rb_size_);
 }
 
 void AudioMediaPlayer::publish_state() {
@@ -100,17 +100,26 @@ media_player::MediaPlayerTraits AudioMediaPlayer::get_traits() {
 // from Component
 void AudioMediaPlayer::loop() {
   
-    AdfPipelineState pipeline_state = this->pipeline_->loop();
+    AudioMediaPipelineState pipeline_state = this->pipeline_.loop();
     if (pipeline_state != this->prior_pipeline_state_) {
       this->on_pipeline_state_change(pipeline_state);
       this->prior_pipeline_state_ = pipeline_state;
     }
     
-    if (pipeline_state == AdfPipelineState::PAUSED
+    if (pipeline_state == AudioMediaPipelineState::PAUSED
         && ((this->get_timestamp_sec_() - this->pause_timestamp_sec_) > this->pause_interval_sec)) {
       this->play_intent_ = false;
       this->stop_();
     }
+}
+
+void AudioMediaPlayer::play_file(audio::AudioFile *media_file, bool announcement, bool enqueue) {
+  esph_log_d(TAG, "play_file while state %s", media_player_state_to_string(this->state));
+  media_player::MediaPlayerEnqueue mpenqueue = media_player::MEDIA_PLAYER_ENQUEUE_REPLACE;
+  if (enqueue) {
+    mpenqueue = media_player::MEDIA_PLAYER_ENQUEUE_ADD;
+  }
+  this->pipeline_.play_file(media_file, mpenqueue);
 }
 
 void AudioMediaPlayer::control(const media_player::MediaPlayerCall &call) {
@@ -138,7 +147,7 @@ void AudioMediaPlayer::control(const media_player::MediaPlayerCall &call) {
         this->state = media_player::MEDIA_PLAYER_STATE_ON;
         publish_state();
       }
-      this->pipeline_->set_url(call.get_media_url().value(), announcing);
+      this->pipeline_.set_url(media_url, announcing, enqueue);
     }
     //normal media, use enqueue value to determine what to do
     else {
@@ -266,7 +275,7 @@ void AudioMediaPlayer::control(const media_player::MediaPlayerCall &call) {
               esph_log_d(TAG,"Set Loop to run normal cycle");
               this->high_freq_.stop();
             }
-            this->pipeline_->clean_up();
+            this->pipeline_.clean_up();
             this->state = media_player::MEDIA_PLAYER_STATE_OFF;
             this->publish_state();
           }
@@ -293,7 +302,7 @@ void AudioMediaPlayer::control(const media_player::MediaPlayerCall &call) {
               esph_log_d(TAG,"Set Loop to run normal cycle");
               this->high_freq_.stop();
             }
-            this->pipeline_->clean_up();
+            this->pipeline_.clean_up();
             this->state = media_player::MEDIA_PLAYER_STATE_OFF;
             this->publish_state();
           }
@@ -331,16 +340,19 @@ void AudioMediaPlayer::control(const media_player::MediaPlayerCall &call) {
   }
 }
 
-void AudioMediaPlayer::on_pipeline_state_change(AdfPipelineState state) {
+void AudioMediaPlayer::on_pipeline_state_change(AudioMediaPipelineState state) {
   esph_log_i(TAG, "got new pipeline state: %s", pipeline_state_to_string(state));
   switch (state) {
-    case AdfPipelineState::STARTING:
+    case AudioMediaPipelineState::STARTING:
      break;
-    case AdfPipelineState::RESUMING:
+    case AudioMediaPipelineState::RESUMING:
      break;
-    case AdfPipelineState::START_ANNOUNCING:
+    case AudioMediaPipelineState::STARTING_ANNOUNCING:
+      if (this->state == media_player::MEDIA_PLAYER_STATE_PAUSED) {
+        this->current_track_ = empty_track_;
+      }
      break;
-    case AdfPipelineState::ANNOUNCING:
+    case AudioMediaPipelineState::ANNOUNCING:
       this->set_volume_( this->volume, false);
       this->state = media_player::MEDIA_PLAYER_STATE_ANNOUNCING;
       timestamp_sec_ = 0;
@@ -352,18 +364,20 @@ void AudioMediaPlayer::on_pipeline_state_change(AdfPipelineState state) {
       set_position_(0);
       this->publish_state();
       break;
-    case AdfPipelineState::RUNNING:
+    case AudioMediaPipelineState::RUNNING:
       this->set_volume_( this->volume, false);
       this->state = media_player::MEDIA_PLAYER_STATE_PLAYING;
       timestamp_sec_ = get_timestamp_sec_();
       this->publish_state();
       break;
-    case AdfPipelineState::STOPPING:
+    case AudioMediaPipelineState::STOPPING:
       break;
-    case AdfPipelineState::STOP_ANNOUNCING:
+    case AudioMediaPipelineState::STOPPING_ANNOUNCING:
+      break;
+    case AudioMediaPipelineState::STOPPED_ANNOUNCING:
       set_playlist_track_(this->current_track_);
       break;
-    case AdfPipelineState::STOPPED:
+    case AudioMediaPipelineState::STOPPED:
       this->current_track_ = empty_track_;
       this->set_artist_("");
       this->set_album_("");
@@ -378,7 +392,7 @@ void AudioMediaPlayer::on_pipeline_state_change(AdfPipelineState state) {
           esph_log_d(TAG,"Set Loop to run normal cycle");
           this->high_freq_.stop();
         }
-        this->pipeline_->clean_up();
+        this->pipeline_.clean_up();
         this->state = media_player::MEDIA_PLAYER_STATE_OFF;
         this->publish_state();
         this->turning_off_ = false;
@@ -396,13 +410,13 @@ void AudioMediaPlayer::on_pipeline_state_change(AdfPipelineState state) {
             esph_log_d(TAG,"Set Loop to run normal cycle");
             this->high_freq_.stop();
           }
-          this->pipeline_->clean_up();
+          this->pipeline_.clean_up();
         }
       }
       break;
-    case AdfPipelineState::PAUSING:
+    case AudioMediaPipelineState::PAUSING:
       break;
-    case AdfPipelineState::PAUSED:
+    case AudioMediaPipelineState::PAUSED:
       this->offset_sec_ = offset_sec_ + (get_timestamp_sec_() - timestamp_sec_);
       this->pause_timestamp_sec_ = get_timestamp_sec_();
       this->state = media_player::MEDIA_PLAYER_STATE_PAUSED;
@@ -445,7 +459,7 @@ void AudioMediaPlayer::set_volume_(float volume, bool publish) {
   else if (new_volume < this->volume_min_) {
     new_volume = this->volume_min_;
   }
-  this->pipeline_->set_volume(round(100 * new_volume));
+  this->pipeline_.set_volume(round(100 * new_volume));
   this->volume = new_volume;
   if (publish) {
     this->force_publish_ = true;
@@ -454,14 +468,14 @@ void AudioMediaPlayer::set_volume_(float volume, bool publish) {
 }
 
 void AudioMediaPlayer::mute_() {
-  this->pipeline_->mute();
+  this->pipeline_.mute();
   this->muted_ = true;
   this->force_publish_ = true;
   this->publish_state();
 }
 
 void AudioMediaPlayer::unmute_() {
-  this->pipeline_->unmute();
+  this->pipeline_.unmute();
   this->muted_ = false;
   this->force_publish_ = true;
   this->publish_state();
@@ -472,7 +486,8 @@ void AudioMediaPlayer::pipeline_start_() {
   if (this->state == media_player::MEDIA_PLAYER_STATE_OFF 
   || this->state == media_player::MEDIA_PLAYER_STATE_ON 
   || this->state == media_player::MEDIA_PLAYER_STATE_NONE
-  || this->state == media_player::MEDIA_PLAYER_STATE_IDLE) {
+  || this->state == media_player::MEDIA_PLAYER_STATE_IDLE
+  || this->state == media_player::MEDIA_PLAYER_STATE_ANNOUNCING) {
     esph_log_d(TAG,"pipeline_start_()");
     if (this->state == media_player::MEDIA_PLAYER_STATE_OFF) {
       this->state = media_player::MEDIA_PLAYER_STATE_ON;
@@ -482,21 +497,21 @@ void AudioMediaPlayer::pipeline_start_() {
       esph_log_d(TAG,"Set Loop to run at high frequency cycle");
       this->high_freq_.start();
     }
-    this->pipeline_->play();
+    this->pipeline_.play();
   }
 }
 
 void AudioMediaPlayer::pipeline_stop_() {
   if (this->state == media_player::MEDIA_PLAYER_STATE_PLAYING || this->state == media_player::MEDIA_PLAYER_STATE_PAUSED) {
     esph_log_d(TAG,"pipeline_stop_()");
-    this->pipeline_->stop();
+    this->pipeline_.stop();
   }
 }
 
 void AudioMediaPlayer::pipeline_pause_() {
   if (this->state == media_player::MEDIA_PLAYER_STATE_PLAYING) {
     esph_log_d(TAG,"pipeline_pause_()");
-    this->pipeline_->pause();
+    this->pipeline_.pause();
   }
 }
 
@@ -508,7 +523,7 @@ void AudioMediaPlayer::pipeline_resume_()
       this->high_freq_.start();
     }
     esph_log_d(TAG,"pipeline_resume_()");
-    this->pipeline_->resume();
+    this->pipeline_.resume();
   }
 }
 
@@ -531,7 +546,7 @@ void AudioMediaPlayer::set_shuffle_(bool shuffle) {
   }
 }
 
-void AudioMediaPlayer::set_playlist_track_(ADFPlaylistTrack track) {
+void AudioMediaPlayer::set_playlist_track_(AudioPlaylistTrack track) {
   esph_log_v(TAG, "uri: %s", track.url.c_str());
   if (track.artist == "") {
 	this->set_artist_(track.playlist);
@@ -552,8 +567,10 @@ void AudioMediaPlayer::set_playlist_track_(ADFPlaylistTrack track) {
 
   esph_log_d(TAG, "set_playlist_track: %s: %s: %s duration: %d %s",
      this->artist_.c_str(), this->album_.c_str(), this->title_.c_str(), this->duration_, track.url.c_str());
-  this->pipeline_->set_url(track.url);
-  this->current_track_ = track;
+  this->pipeline_.set_url(track.url);
+  if (track.url.length() > 0) {
+    this->current_track_ = track;
+  }
 }
 
 void AudioMediaPlayer::play_next_track_on_playlist_(int track_id) {
@@ -589,7 +606,7 @@ int32_t AudioMediaPlayer::get_timestamp_sec_() {
   return (int32_t)tv_now.tv_sec;
 }
 
-}  // namespace esp_adf
+}  // namespace esp_audio
 }  // namespace esphome
 
 #endif  // USE_ESP_IDF

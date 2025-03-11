@@ -2,25 +2,44 @@
 
 #ifdef USE_ESP_IDF
 
+#include "audio_file.h"
 #include "esphome/components/media_player/media_player.h"
 #include "esphome/core/component.h"
 #include "esphome/core/gpio.h"
 #include "esphome/core/helpers.h"
+
+#ifdef USE_ADF_SIMPLE_PIPELINE
 #include "simple_adf_pipeline.h"
+#endif
+#ifdef USE_ADF_COMPLEX_PIPELINE
 #include "complex_adf_pipeline.h"
+#endif
   
 #include "audio_playlists.h"
 
 namespace esphome {
-namespace esp_adf {
+namespace esp_audio {
+
+enum class EmbedFileType : uint8_t {
+  NONE = 0,
+#ifdef USE_FLAC_DECODER
+  FLAC,
+#endif
+#ifdef USE_MP3_DECODER
+  MP3,
+#endif
+  WAV,
+};
+
+struct EmbedFile {
+  const uint8_t *address;
+  size_t size;
+};
 
 class AudioMediaPlayer : public Component, public media_player::MediaPlayer {
 
  public:
    
-  AudioMediaPlayer() : Component(), media_player::MediaPlayer()  {
-    this->pipeline_ = new AdfMediaPipeline();
-  }
   // ESPHome-Component implementations
   float get_setup_priority() const override { return esphome::setup_priority::LATE; }
   void dump_config() override;
@@ -41,6 +60,7 @@ class AudioMediaPlayer : public Component, public media_player::MediaPlayer {
   int position() const { return this->position_; }
   
   //this
+  void play_file(audio::AudioFile *media_file, bool announcement, bool enqueue);
   void set_dout_pin(int pin) { this->dout_pin_ = pin; }
   void set_mclk_pin(int pin) { this->mclk_pin_ = pin; }
   void set_bclk_pin(int pin) { this->bclk_pin_ = pin; }
@@ -52,14 +72,6 @@ class AudioMediaPlayer : public Component, public media_player::MediaPlayer {
   void set_http_stream_rb_size(int rb_size) {this ->http_stream_rb_size_ = rb_size; }
   void set_esp_decoder_rb_size(int rb_size) {this ->esp_decoder_rb_size_ = rb_size; }
   void set_i2s_stream_rb_size(int rb_size) {this ->i2s_stream_rb_size_ = rb_size; }
-  void set_pipeline_type(const std::string& pipeline_type) {
-    if (pipeline_type == "COMPLEX") {
-      this->pipeline_type_ = 1;
-    }
-    else {
-      this->pipeline_type_ = 0;
-    }
-  }
 
   // Percentage to increase or decrease the volume for volume up or volume down commands
   void set_volume_increment(float volume_increment) { this->volume_increment_ = volume_increment; }
@@ -80,7 +92,7 @@ class AudioMediaPlayer : public Component, public media_player::MediaPlayer {
   void control(const media_player::MediaPlayerCall &call) override;
 
   //this 
-  void on_pipeline_state_change(AdfPipelineState state);
+  void on_pipeline_state_change(AudioMediaPipelineState state);
     
   void start_();
   void stop_();
@@ -105,7 +117,7 @@ class AudioMediaPlayer : public Component, public media_player::MediaPlayer {
   void set_duration_(int duration) {duration_ = duration;}
   void set_position_(int position) {position_ = position;}
     
-  void set_playlist_track_(ADFPlaylistTrack track);
+  void set_playlist_track_(AudioPlaylistTrack track);
   void play_next_track_on_playlist_(int track_id);
 
   int32_t get_timestamp_sec_();
@@ -118,14 +130,22 @@ class AudioMediaPlayer : public Component, public media_player::MediaPlayer {
   std::string ffmpeg_server_{"http://homeassistant.local:8123"};
   std::string format_{"flac"};
   uint32_t rate_{44100};
-  int http_stream_rb_size_{50 * HTTP_STREAM_RINGBUFFER_SIZE};  
-  int esp_decoder_rb_size_{ESP_DECODER_RINGBUFFER_SIZE};
-  int i2s_stream_rb_size_{I2S_STREAM_RINGBUFFER_SIZE};
-  int32_t pipeline_type_{0};
+
+  int http_stream_rb_size_{50 * 20 * 1024};
+  
+  int esp_decoder_rb_size_{10 * 1024};
+  
+  int i2s_stream_rb_size_{8 * 1024};
   float volume_increment_;
   float volume_max_;
   float volume_min_;
-  AdfMediaPipeline *pipeline_{nullptr};
+
+#ifdef USE_ADF_SIMPLE_PIPELINE
+  SimpleADFPipeline pipeline_;
+#endif
+#ifdef USE_ADF_COMPLEX_PIPELINE
+  ComplexADFPipeline pipeline_;
+#endif
 
   AudioPlaylists audioPlaylists_;
 
@@ -147,12 +167,12 @@ class AudioMediaPlayer : public Component, public media_player::MediaPlayer {
   int32_t offset_sec_{0};
 
   int play_track_id_{-1};
-  ADFPlaylistTrack current_track_;
-  ADFPlaylistTrack empty_track_;
-  AdfPipelineState prior_pipeline_state_{AdfPipelineState::STOPPED};
+  AudioPlaylistTrack current_track_;
+  AudioPlaylistTrack empty_track_;
+  AudioMediaPipelineState prior_pipeline_state_{AudioMediaPipelineState::STOPPED};
 };
 
-}  // namespace esp_adf
+}  // namespace esp_audio
 }  // namespace esphome
 
 #endif  // USE_ESP_IDF

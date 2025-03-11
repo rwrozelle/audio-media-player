@@ -47,6 +47,9 @@ see the new attributes:
     #transcode_format: FLAC
     # sample rate for transcoding, defaults to 44100
     transcode_sample_rate: 48000
+    # defaults to FLAC, other options: MP3, WAV, AAC, AMRNB, AMRWB, M4A, OGG, OPUS, TS
+    # only testing with FLAC
+    #enabled_codecs: FLAC
 ```
 Transcoding will strip metadata and embedded image that will mean smaller file transferred and less work by Pipeline in extracting track stream.
 
@@ -104,7 +107,7 @@ esp32:
       CONFIG_ESP32_DEFAULT_CPU_FREQ_240: "y"
       CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ: "240"
 
-     #tx is transmission, rx is read
+      #tx is transmission, rx is read
       #Wi-Fi
       #If PSRAM is enabled, "Static" should be selected to guarantee enough WiFi TX buffers
       CONFIG_ESP_WIFI_STATIC_TX_BUFFER: "y"
@@ -134,6 +137,10 @@ esp32:
       #The recommended value is: LWIP_TCP_WND_DEFAULT/TCP_MSS + 2
       #default is 6, range is 0 to 1024 if CONFIG_LWIP_WND_SCALE
       CONFIG_LWIP_TCP_RECVMBOX_SIZE: "360"
+      
+      #If music from an https url
+      #CONFIG_ESP_TLS_INSECURE: "y"
+      #CONFIG_ESP_TLS_SKIP_SERVER_CERT_VERIFY: "y"
 
 psram:
  mode: octal
@@ -164,16 +171,16 @@ wifi:
 # note: not using i2s_audio. Assumes this is the only i2s app running.  
 audio_media_player:
     name: "Media Player 1"
-    #either SIMPLE (default) or COMPLEX
-    adf_pipeline_type: COMPLEX
+    # either SIMPLE (default) or COMPLEX
+    pipeline_type: COMPLEX
     # long lived bearer token, stored in esphome/secrets.yaml used to contact ffmpeg server for transcoding
-    # if not provided, transcoding does not occur.
+    # if not provided, server based transcoding does not occur, instead it happens on SOC
     transcode_access_token: !secret access_token 
-    # ffmpeg server for transcoding, defaults to "http://homeassistant.local:8123" if not input.
+    # ffmpeg server for server based transcoding, defaults to "http://homeassistant.local:8123" if not input.
     #transcode_server: http://homeassistant.local:8123
-    # transcode target format: MP3, FLAC, WAV, or NONE, if NONE the transcoding does not occur.
+    # transcode target format: MP3, FLAC, WAV, or NONE, if NONE then server based transcoding does not occur.
     #transcode_format: FLAC
-    # sample rate for transcoding, defaults to 44100
+    # sample rate for transcoding, defaults to 44100, used either on server or on SOC based on above.
     #transcode_sample_rate: 48000
     # defaults to 50 * 20 * 1024 = 1024000
     #http_stream_rb_size: 1024000
@@ -181,6 +188,14 @@ audio_media_player:
     #esp_decoder_rb_size: 10240
     # defaults to 8 * 1024 = 8192
     #i2s_stream_rb_size: 8192
+    # defaults to FLAC, other options: MP3, WAV, AAC, AMRNB, AMRWB, M4A, OGG, OPUS, TS
+    # only testing with FLAC
+    #enabled_codecs: FLAC
+    # volume management
+    # HA media player volume increment is always 10
+    volume_increment: 5%
+    volume_min: 0%
+    volume_max: 100%
     # Modify pin based on physical wiring
     i2s_lrclk_pin: GPIO4
     i2s_bclk_pin: GPIO6

@@ -4,10 +4,24 @@
 
 #include <string>
 #include <vector>
+#include "esp_random.h"
+#include <random>
 #include "esphome/components/media_player/media_player.h"
 
 namespace esphome {
 namespace esp_audio {
+  
+class ESP32RandomEngine {
+public:
+    using result_type = uint32_t;
+
+    static constexpr uint32_t min() { return 0; }
+    static constexpr uint32_t max() { return UINT32_MAX; }
+
+    result_type operator()() {
+        return esp_random();
+    }
+};
 
 class AudioUrlTrack {
   public:
@@ -48,6 +62,7 @@ class AudioPlaylists {
   int parse_m3u_into_playlist_(const char *url, bool toBack, bool shuffle);
   void update_playlist_order_(unsigned int start_order);
   std::vector<AudioPlaylistTrack> playlist_;
+  ESP32RandomEngine random_engine_;
 };
 
 }  // namespace esp_audio

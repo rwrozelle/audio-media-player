@@ -3,8 +3,6 @@
 #ifdef USE_ESP_IDF
 
 #include <algorithm>
-#include <random>
-
 #include "esphome/core/log.h"
 #include <esp_http_client.h>
 
@@ -51,8 +49,7 @@ void AudioPlaylists::shuffle_playlist(bool shuffle) {
   unsigned int vid = this->playlist_.size();
   if (vid > 0) {
     if (shuffle) {
-      auto rng = std::default_random_engine {};
-      std::shuffle(std::begin(this->playlist_), std::end(this->playlist_), rng);
+      std::shuffle(std::begin(this->playlist_), std::end(this->playlist_), random_engine_);
     }
     else {
       sort(this->playlist_.begin(), this->playlist_.end());

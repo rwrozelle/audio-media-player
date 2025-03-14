@@ -307,7 +307,7 @@ std::string AudioMediaPipeline::get_transcode_url_(const std::string& url) {
 	  if (this->format_ != "mp3") {
 		  wd2 = "&width=2";
 	  }
-      std::string proxy_url = this->ffmpeg_server_ + "/api/esphome/ffmpeg_proxy_with_conversion_info/" \
+      std::string proxy_url = this->ffmpeg_server_ + "/api/esphome/transcode/" \
 	  + App.get_name() + "/" + std::to_string(hashValue) + "." + this->format_ \
       + "?rate=" + std::to_string(this->rate_) + "&channels=" + std::to_string(this->ch_) + wd2 + "&media=" + encoded_url;
       esph_log_d(TAG,"using ffmpeg proxy on: %s", url.c_str());

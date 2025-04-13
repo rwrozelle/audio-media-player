@@ -1,6 +1,6 @@
 Audio Media Player
 ==========================
-Install Version: ESPHome-2025.3.3, Core: 2025.4.1, ADF 2.7
+Install Version: ESPHome-2025.3.3, Core: 2025.4.1
 ------------------------
 
 I am no longer developing the ADF version of Audio Media Player.  The code is available in the 2 release tags.
